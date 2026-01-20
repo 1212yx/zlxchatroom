@@ -1,0 +1,213 @@
+{% extends "admin/layout.html" %}
+
+{% block breadcrumb %}接口管理{% endblock %}
+
+{% block content %}
+<div class="layui-card page-toolbar">
+    <div class="layui-row">
+        <div class="layui-col-md12">
+            <button class="layui-btn layui-btn-normal" id="btn-add">
+                <i class="layui-icon layui-icon-add-1"></i> 新增接口
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="layui-card">
+    <div class="layui-card-body">
+        <table class="layui-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>接口名称</th>
+                    <th>指令</th>
+                    <th>接口地址</th>
+                    <th>状态</th>
+                    <th>创建时间</th>
+                    <th style="text-align: center;">操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for api in apis %}
+                <tr>
+                    <td>{{ api.id }}</td>
+                    <td>{{ api.name }}</td>
+                    <td><span class="layui-badge layui-bg-blue">{{ api.command }}</span></td>
+                    <td title="{{ api.url }}">{{ api.url[:50] }}{{ '...' if api.url|length > 50 else '' }}</td>
+                    <td>
+                        {% if api.is_enabled %}
+                        <span class="layui-badge layui-bg-green">启用</span>
+                        {% else %}
+                        <span class="layui-badge layui-bg-gray">禁用</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ api.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                    <td style="text-align: center;">
+                        <button class="layui-btn layui-btn-sm layui-btn-normal btn-edit" data-id="{{ api.id }}" title="编辑">
+                            <i class="layui-icon layui-icon-edit"></i>
+                        </button>
+                        <button class="layui-btn layui-btn-sm layui-btn-warm btn-toggle" data-id="{{ api.id }}" title="{{ '禁用' if api.is_enabled else '启用' }}">
+                            <i class="layui-icon {{ 'layui-icon-close-circle' if api.is_enabled else 'layui-icon-ok-circle' }}"></i>
+                        </button>
+                        <button class="layui-btn layui-btn-sm layui-btn-danger btn-delete" data-id="{{ api.id }}" title="删除">
+                            <i class="layui-icon layui-icon-delete"></i>
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        
+        <!-- 分页 -->
+        <div id="pagination" style="text-align: center; margin-top: 20px;" data-total="{{ pagination.total }}" data-page="{{ pagination.page }}"></div>
+    </div>
+</div>
+
+<!-- 新增/编辑表单 -->
+<div id="apiForm" style="display: none; padding: 20px;">
+    <form class="layui-form" lay-filter="apiForm">
+        <div class="layui-form-item">
+            <label class="layui-form-label">名称</label>
+            <div class="layui-input-block">
+                <input type="text" name="name" required lay-verify="required" placeholder="请输入接口名称" autocomplete="off" class="layui-input">
+            </div>
+        </div>
+        <div class="layui-form-item">
+            <label class="layui-form-label">指令</label>
+            <div class="layui-input-block">
+                <input type="text" name="command" required lay-verify="required" placeholder="例如: @weather" autocomplete="off" class="layui-input">
+            </div>
+        </div>
+        <div class="layui-form-item">
+            <label class="layui-form-label">地址</label>
+            <div class="layui-input-block">
+                <input type="text" name="url" required lay-verify="required|url" placeholder="请输入接口调用地址" autocomplete="off" class="layui-input">
+            </div>
+        </div>
+        <div class="layui-form-item">
+            <label class="layui-form-label">Token</label>
+            <div class="layui-input-block">
+                <input type="text" name="token" placeholder="可选填" autocomplete="off" class="layui-input">
+            </div>
+        </div>
+        <div class="layui-form-item" style="text-align: center;">
+            <button class="layui-btn" lay-submit lay-filter="submitApi">提交</button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+layui.use(['laypage', 'layer', 'form'], function(){
+    var laypage = layui.laypage;
+    var layer = layui.layer;
+    var form = layui.form;
+    var $ = layui.$;
+    
+    // 获取分页数据
+    var total = parseInt($('#pagination').data('total'));
+    var curr = parseInt($('#pagination').data('page'));
+
+    // 分页
+    laypage.render({
+        elem: 'pagination',
+        count: total,
+        limit: 12,
+        curr: curr,
+        layout: ['count', 'prev', 'page', 'next', 'skip'],
+        jump: function(obj, first){
+            if(!first){
+                location.href = "{{ url_for('admin.apis') }}?page=" + obj.curr;
+            }
+        }
+    });
+
+    var currentId = null;
+
+    // 打开新增弹窗
+    $('#btn-add').on('click', function(){
+        currentId = null;
+        form.val('apiForm', {
+            'name': '',
+            'command': '',
+            'url': '',
+            'token': ''
+        });
+        layer.open({
+            type: 1,
+            title: '新增接口',
+            area: ['500px', '400px'],
+            content: $('#apiForm')
+        });
+    });
+
+    // 编辑
+    $('.btn-edit').on('click', function(){
+        currentId = $(this).data('id');
+        // 获取详情
+        $.get("{{ url_for('admin.apis') }}/" + currentId, function(res){
+            form.val('apiForm', {
+                'name': res.name,
+                'command': res.command,
+                'url': res.url,
+                'token': res.token
+            });
+            layer.open({
+                type: 1,
+                title: '编辑接口',
+                area: ['500px', '400px'],
+                content: $('#apiForm')
+            });
+        });
+    });
+
+    // 提交表单
+    form.on('submit(submitApi)', function(data){
+        var url = currentId ? "{{ url_for('admin.apis') }}/" + currentId + "/edit" : "{{ url_for('admin.apis') }}/add";
+        
+        $.post(url, data.field, function(res){
+            if(res.status === 'success'){
+                layer.msg(res.message, {icon: 1, time: 1000}, function(){
+                    location.reload();
+                });
+            } else {
+                layer.msg(res.message, {icon: 2});
+            }
+        });
+        return false;
+    });
+
+    // 禁用/启用
+    $('.btn-toggle').on('click', function(){
+        var id = $(this).data('id');
+        var title = $(this).attr('title');
+        layer.confirm('确定要' + title + '该接口吗？', function(index){
+            $.post("{{ url_for('admin.apis') }}/" + id + "/toggle", function(res){
+                if(res.status === 'success'){
+                    layer.msg(res.message, {icon: 1, time: 1000}, function(){
+                        location.reload();
+                    });
+                }
+            });
+            layer.close(index);
+        });
+    });
+
+    // 删除
+    $('.btn-delete').on('click', function(){
+        var id = $(this).data('id');
+        layer.confirm('确定要删除该接口吗？', function(index){
+            $.post("{{ url_for('admin.apis') }}/" + id + "/delete", function(res){
+                if(res.status === 'success'){
+                    layer.msg(res.message, {icon: 1, time: 1000}, function(){
+                        location.reload();
+                    });
+                }
+            });
+            layer.close(index);
+        });
+    });
+});
+</script>
+{% endblock %}
