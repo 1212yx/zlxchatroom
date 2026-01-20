@@ -11,15 +11,31 @@
 </head>
 <body>
     <div class="chat-wrapper">
+        <!-- Main Sidebar (Leftmost) -->
+        <div class="main-sidebar">
+            <div class="main-nav-item active" title="聊天" onclick="switchTab(this, 'chat')">
+                <i class="fas fa-comment-dots"></i>
+            </div>
+            <div class="main-nav-item" title="好友" onclick="switchTab(this, 'friend')">
+                <i class="fas fa-user-friends"></i>
+            </div>
+            <div class="main-nav-item" title="游戏" onclick="switchTab(this, 'game')">
+                <i class="fas fa-gamepad"></i>
+            </div>
+            <div class="main-nav-item" title="设置" style="margin-top: auto;" onclick="switchTab(this, 'settings')">
+                <i class="fas fa-cog"></i>
+            </div>
+            <a href="{{ url_for('chat.logout') }}" class="main-nav-item" title="退出" style="text-decoration: none;">
+                <i class="fas fa-sign-out-alt"></i>
+            </a>
+        </div>
+
         <!-- Sidebar -->
         <div class="sidebar">
             <div class="sidebar-header">
                 <div class="search-box">
                     <i class="fas fa-search"></i> 搜索
                 </div>
-                <a href="{{ url_for('chat.logout') }}" style="color: #8b949e; cursor:pointer; text-decoration: none;" title="退出">
-                    <i class="fas fa-sign-out-alt"></i>
-                </a>
             </div>
             
             <div class="chat-list">
@@ -56,8 +72,13 @@
             </div>
             
             <div class="input-area">
+                <!-- Emoji Panel -->
+                <div class="emoji-panel" id="emojiPanel" style="display: none;">
+                    <div class="emoji-grid" id="emojiGrid"></div>
+                </div>
+
                 <div class="toolbar">
-                    <i class="far fa-smile"></i>
+                    <i class="far fa-smile" id="emojiBtn" title="表情"></i>
                     <i class="far fa-folder"></i>
                     <i class="fas fa-cut"></i>
                     <i class="far fa-comment-dots"></i>
@@ -81,6 +102,42 @@
         </div>
     </div>
 
+    <!-- Settings Sidebar -->
+    <div class="settings-sidebar" id="settingsSidebar">
+        <div class="settings-sidebar-header">
+            <span>设置</span>
+            <i class="fas fa-times close-sidebar" onclick="closeSettingsSidebar()"></i>
+        </div>
+        <div class="settings-list">
+            <div class="setting-item">
+                <span class="setting-label">新消息提示音</span>
+                <label class="switch">
+                    <input type="checkbox" id="toggleMsgSound" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div class="setting-item">
+                <span class="setting-label">好友上线提示音</span>
+                <label class="switch">
+                    <input type="checkbox" id="toggleUserSound" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div class="setting-item">
+                <span class="setting-label">发送消息提示音</span>
+                <label class="switch">
+                    <input type="checkbox" id="toggleSelfSound" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <!-- Audio Elements -->
+    <audio id="audioMsgComing" src="{{ url_for('chat.static', filename='mp3/msgcoming.mp3') }}" preload="auto"></audio>
+    <audio id="audioUserComing" src="{{ url_for('chat.static', filename='mp3/usercoming.mp3') }}" preload="auto"></audio>
+    <audio id="audioUserSendMsg" src="{{ url_for('chat.static', filename='mp3/usersendmsg.mp3') }}" preload="auto"></audio>
+
     <script>
         const user = "{{ user }}";
         const room = "{{ server }}";
@@ -89,6 +146,58 @@
         const wsUrl = `${protocol}//${window.location.host}/chat/ws`;
         
         let ws;
+        let previousUserList = new Set();
+        let isFirstLoad = true;
+
+        // Load settings from localStorage
+        const settings = {
+            msgSound: localStorage.getItem('msgSound') !== 'false',
+            userSound: localStorage.getItem('userSound') !== 'false',
+            selfSound: localStorage.getItem('selfSound') !== 'false'
+        };
+
+        // Initialize checkboxes
+        $('#toggleMsgSound').prop('checked', settings.msgSound);
+        $('#toggleUserSound').prop('checked', settings.userSound);
+        $('#toggleSelfSound').prop('checked', settings.selfSound);
+
+        // Settings event listeners
+        $('#toggleMsgSound').change(function() {
+            settings.msgSound = this.checked;
+            localStorage.setItem('msgSound', this.checked);
+        });
+        $('#toggleUserSound').change(function() {
+            settings.userSound = this.checked;
+            localStorage.setItem('userSound', this.checked);
+        });
+        $('#toggleSelfSound').change(function() {
+            settings.selfSound = this.checked;
+            localStorage.setItem('selfSound', this.checked);
+        });
+
+        function playSound(type) {
+            let audioId = '';
+            let shouldPlay = false;
+
+            if (type === 'msg' && settings.msgSound) {
+                audioId = 'audioMsgComing';
+                shouldPlay = true;
+            } else if (type === 'user' && settings.userSound) {
+                audioId = 'audioUserComing';
+                shouldPlay = true;
+            } else if (type === 'self' && settings.selfSound) {
+                audioId = 'audioUserSendMsg';
+                shouldPlay = true;
+            }
+
+            if (shouldPlay && audioId) {
+                const audio = document.getElementById(audioId);
+                if (audio) {
+                    audio.currentTime = 0;
+                    audio.play().catch(e => console.log("Audio play failed:", e));
+                }
+            }
+        }
 
         function connect() {
             ws = new WebSocket(wsUrl);
@@ -134,6 +243,14 @@
                 html = `<div class="system-message">${msg.content} <span style="font-size:10px;">${msg.timestamp}</span></div>`;
             } else if (msg.type === 'chat') {
                 const isSelf = msg.user === user;
+                
+                // Play sound
+                if (isSelf) {
+                    playSound('self');
+                } else {
+                    playSound('msg');
+                }
+
                 const cls = isSelf ? 'self' : 'other';
                 const avatar = isSelf ? user[0].toUpperCase() : (msg.user ? msg.user[0].toUpperCase() : '?');
                 
@@ -176,12 +293,52 @@
         
         function toggleUserSidebar() {
             $('.user-sidebar').toggleClass('active');
+            if ($('.user-sidebar').hasClass('active')) {
+                $('.settings-sidebar').removeClass('active');
+            }
+        }
+
+        function switchTab(element, tabName) {
+            // Remove active from all nav items
+            $('.main-nav-item').removeClass('active');
+            // Add active to clicked item
+            $(element).addClass('active');
+
+            if (tabName === 'settings') {
+                $('.settings-sidebar').addClass('active');
+                $('.user-sidebar').removeClass('active');
+            } else {
+                $('.settings-sidebar').removeClass('active');
+            }
+        }
+
+        function closeSettingsSidebar() {
+            $('.settings-sidebar').removeClass('active');
+            // Revert active state to Chat
+            $('.main-nav-item').removeClass('active');
+            $('.main-nav-item[title="聊天"]').addClass('active');
         }
 
         function updateUserList(users, count) {
             $('#userCount').text(count);
             const list = $('#userList');
             list.empty();
+            
+            // Check for new users
+            const currentUserSet = new Set(users);
+            
+            if (!isFirstLoad) {
+                for (let u of currentUserSet) {
+                    if (!previousUserList.has(u) && u !== user) {
+                        playSound('user');
+                        break; // Play once per update batch
+                    }
+                }
+            }
+            
+            previousUserList = currentUserSet;
+            isFirstLoad = false;
+
             users.forEach(u => {
                 const isSelf = u === user;
                 const html = `
@@ -197,6 +354,57 @@
                 list.append(html);
             });
         }
+
+        // Emoji Logic
+        const emojiBtn = document.getElementById('emojiBtn');
+        const emojiPanel = document.getElementById('emojiPanel');
+        const emojiGrid = document.getElementById('emojiGrid');
+        const messageInput = document.getElementById('messageInput');
+        
+        const emojis = [
+            '😀', '😁', '😂', '🤣', '😃', '😄', '😅', '😆', '😉', '😊', '😋', '😎',
+            '😍', '😘', '🥰', '😗', '😙', '😚', '🙂', '🤗', '🤩', '🤔', '🤨', '😐',
+            '😑', '😶', '🙄', '😏', '😣', '😥', '😮', '🤐', '😯', '😪', '😫', '😴',
+            '😌', '😛', '😜', '😝', '🤤', '😒', '😓', '😔', '😕', '🙃', '🤑', '😲',
+            '☹️', '🙁', '😖', '😞', '😟', '😤', '😢', '😭', '😦', '😧', '😨', '😩',
+            '🤯', '😬', '😰', '😱', '🥵', '🥶', '😳', '🤪', '😵', '😡', '😠', '🤬',
+            '😷', '🤒', '🤕', '🤢', '🤮', '🤧', '😇', '🤠', '🤡', '🥳', '🥴', '🥺',
+            '🤥', '🤫', '🤭', '🧐', '🤓', '😈', '👿', '👹', '👺', '💀', '👻', '👽',
+            '🤖', '💩', '😺', '😸', '😹', '😻', '😼', '😽', '🙀', '😿', '😾', '👋',
+            '🤚', '🖐', '✋', '🖖', '👌', '🤏', '✌️', '🤞', '🤟', '🤘', '🤙', '👈',
+            '👉', '👆', '🖕', '👇', '☝️', '👍', '👎', '✊', '👊', '🤛', '🤜', '👏',
+            '🙌', '👐', '🤲', '🤝', '🙏', '✍️', '💅', '🤳', '💪', '🦾', '🦵', '🦿',
+            '🦶', '👂', '🦻', '👃', '🧠', '🦷', '🦴', '👀', '👁️', '👅', '👄', '💋'
+        ];
+
+        // Populate Emojis
+        emojis.forEach(emoji => {
+            const span = document.createElement('span');
+            span.className = 'emoji-item';
+            span.textContent = emoji;
+            span.onclick = function() {
+                messageInput.value += emoji;
+                messageInput.focus();
+            };
+            emojiGrid.appendChild(span);
+        });
+
+        // Toggle Panel
+        emojiBtn.onclick = function(e) {
+            e.stopPropagation();
+            if (emojiPanel.style.display === 'none') {
+                emojiPanel.style.display = 'block';
+            } else {
+                emojiPanel.style.display = 'none';
+            }
+        };
+
+        // Close on click outside
+        document.addEventListener('click', function(e) {
+            if (emojiPanel.style.display !== 'none' && !emojiPanel.contains(e.target) && e.target !== emojiBtn) {
+                emojiPanel.style.display = 'none';
+            }
+        });
     </script>
 </body>
 </html>

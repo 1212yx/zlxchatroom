@@ -220,7 +220,28 @@ select.form-control option {
     right: 0;
 }
 
-.user-sidebar-header {
+/* Settings Sidebar (Left Side) */
+.settings-sidebar {
+    position: fixed;
+    top: 0;
+    left: 60px; /* Positioned after main sidebar */
+    width: 250px; /* Matches chat list sidebar width */
+    height: 100%;
+    background: #0d1117;
+    border-right: 1px solid #30363d;
+    transition: transform 0.3s ease-in-out;
+    z-index: 90; /* Below main sidebar (100) but above content */
+    display: flex;
+    flex-direction: column;
+    box-shadow: 5px 0 15px rgba(0, 0, 0, 0.5);
+    transform: translateX(-100%); /* Start hidden behind main sidebar */
+}
+
+.settings-sidebar.active {
+    transform: translateX(0);
+}
+
+.user-sidebar-header, .settings-sidebar-header {
     padding: 15px;
     border-bottom: 1px solid #30363d;
     font-weight: bold;
@@ -229,6 +250,76 @@ select.form-control option {
     align-items: center;
     background: #161b22;
     color: #c9d1d9;
+}
+
+/* Settings List */
+.settings-list {
+    flex: 1;
+    padding: 20px;
+}
+
+.setting-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #21262d;
+}
+
+.setting-label {
+    font-size: 14px;
+    color: #c9d1d9;
+}
+
+/* Toggle Switch */
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 40px;
+    height: 20px;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #30363d;
+    transition: .4s;
+    border-radius: 20px;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 14px;
+    width: 14px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+}
+
+input:checked + .slider {
+    background-color: #1f6feb;
+}
+
+input:focus + .slider {
+    box-shadow: 0 0 1px #1f6feb;
+}
+
+input:checked + .slider:before {
+    transform: translateX(20px);
 }
 
 .close-sidebar {
@@ -312,17 +403,50 @@ select.form-control option {
     color: #8b949e;
 }
 
-/* Chat Layout */
+/* Chat Page */
 .chat-wrapper {
     display: flex;
     width: 100%;
-    height: 100vh;
-    background: #0d1117;
+    height: 100%;
+}
+
+.main-sidebar {
+    width: 60px;
+    background: #090c10;
+    border-right: 1px solid #30363d;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px 0;
+    z-index: 100;
+}
+
+.main-nav-item {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #8b949e;
+    cursor: pointer;
+    margin-bottom: 20px;
+    transition: all 0.2s;
+    font-size: 18px;
+}
+
+.main-nav-item:last-child {
+    margin-bottom: 20px;
+}
+
+.main-nav-item:hover, .main-nav-item.active {
+    background: #1f6feb;
+    color: #ffffff;
 }
 
 .sidebar {
-    width: 280px;
-    background: #161b22;
+    width: 250px;
+    background: #0d1117;
     border-right: 1px solid #30363d;
     display: flex;
     flex-direction: column;
@@ -441,8 +565,57 @@ select.form-control option {
 }
 
 .input-area {
+    position: relative;
     border-top: 1px solid #30363d;
     padding: 15px;
+}
+
+/* Emoji Panel Styles */
+.emoji-panel {
+    position: absolute;
+    bottom: 100%;
+    left: 20px;
+    margin-bottom: 10px;
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 10px;
+    width: 320px;
+    height: 250px;
+    overflow-y: auto;
+    z-index: 1000;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+}
+
+.emoji-panel::-webkit-scrollbar {
+    width: 6px;
+}
+.emoji-panel::-webkit-scrollbar-track {
+    background: #0d1117;
+}
+.emoji-panel::-webkit-scrollbar-thumb {
+    background: #30363d;
+    border-radius: 3px;
+}
+
+.emoji-grid {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 5px;
+}
+
+.emoji-item {
+    cursor: pointer;
+    font-size: 20px;
+    text-align: center;
+    padding: 5px;
+    border-radius: 4px;
+    transition: background 0.2s;
+    user-select: none;
+}
+
+.emoji-item:hover {
+    background: #30363d;
 }
 
 .toolbar {

@@ -7,14 +7,14 @@ with app.app_context():
     servers = WSServer.query.all()
     updated = False
     for server in servers:
-        if '8090' in server.address:
-            server.address = server.address.replace('8090', '5555')
+        if '5555' in server.address:
+            server.address = server.address.replace('5555', '8090/chat/ws')
             updated = True
-        elif '8091' in server.address:
-            server.address = server.address.replace('8091', '5556')
+        elif '5556' in server.address:
+            server.address = server.address.replace('5556', '8090/chat/ws')
             updated = True
-        elif '8092' in server.address:
-            server.address = server.address.replace('8092', '5557')
+        elif '5557' in server.address:
+            server.address = server.address.replace('5557', '8090/chat/ws')
             updated = True
             
     if updated:
