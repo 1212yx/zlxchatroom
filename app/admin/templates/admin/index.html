@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block title %}后台管理 - ZLX Chatroom{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <h1>系统后台管理</h1>
+        <p>仅限管理员访问。</p>
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th scope="col">#</th>
+                    <th scope="col">模块</th>
+                    <th scope="col">状态</th>
+                    <th scope="col">操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <th scope="row">1</th>
+                    <td>Chat</td>
+                    <td><span class="badge bg-success">运行中</span></td>
+                    <td><button class="btn btn-sm btn-warning">配置</button></td>
+                </tr>
+                <tr>
+                    <th scope="row">2</th>
+                    <td>Bot</td>
+                    <td><span class="badge bg-success">运行中</span></td>
+                    <td><button class="btn btn-sm btn-warning">配置</button></td>
+                </tr>
+                 <tr>
+                    <th scope="row">3</th>
+                    <td>Game</td>
+                    <td><span class="badge bg-success">运行中</span></td>
+                    <td><button class="btn btn-sm btn-warning">配置</button></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
