@@ -1,0 +1,156 @@
+{% extends "admin/layout.html" %}
+
+{% block breadcrumb %}用户管理 / 用户列表{% endblock %}
+
+{% block content %}
+<!-- 顶部操作栏 -->
+<div class="page-toolbar">
+    <div class="layui-form layui-row layui-col-space10">
+        <div class="layui-col-md3">
+            <input type="text" name="keyword" placeholder="请输入用户名或邮箱" autocomplete="off" class="layui-input" style="height: 32px;">
+        </div>
+        <div class="layui-col-md9">
+            <button class="layui-btn layui-btn-primary" style="border-color: #dedede;">
+                <i class="layui-icon layui-icon-search"></i> 搜索
+            </button>
+            <button class="layui-btn layui-btn-normal" onclick="location.reload()">
+                <i class="layui-icon layui-icon-refresh"></i> 刷新
+            </button>
+            <button class="layui-btn" style="background-color: #5FB878;">
+                <i class="layui-icon layui-icon-add-1"></i> 添加
+            </button>
+            <button class="layui-btn layui-btn-danger">
+                <i class="layui-icon layui-icon-delete"></i> 删除
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- 数据表格卡片 -->
+<div class="data-card">
+    <table class="layui-table" lay-skin="line">
+        <colgroup>
+            <col width="50">
+            <col width="80">
+            <col width="150">
+            <col width="200">
+            <col width="200">
+            <col width="100">
+            <col>
+        </colgroup>
+        <thead>
+            <tr>
+                <th><input type="checkbox" name="" lay-skin="primary"></th>
+                <th>ID</th>
+                <th>用户名</th>
+                <th>邮箱</th>
+                <th>创建时间</th>
+                <th>状态</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for user in users %}
+            <tr>
+                <td><input type="checkbox" name="" lay-skin="primary"></td>
+                <td>{{ user.id }}</td>
+                <td>{{ user.username }}</td>
+                <td>{{ user.email }}</td>
+                <td>{{ user.created_at.strftime('%Y-%m-%d %H:%M:%S') if user.created_at else '' }}</td>
+                <td>
+                    {% if user.is_banned %}
+                    <span class="layui-badge">封禁</span>
+                    {% else %}
+                    <span class="layui-badge layui-bg-green" style="background-color: transparent!important; color: #5FB878!important; border: 1px solid #5FB878;">正常</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <a href="javascript:;" class="action-link" onclick="viewUser('{{ user.username }}', '{{ user.email }}', '{{ user.created_at }}')">编辑</a>
+                    <a href="javascript:;" class="action-link" onclick="toggleBan('{{ user.id }}', this)">{{ '解封' if user.is_banned else '封禁' }}</a>
+                    <a href="javascript:;" class="action-link delete" onclick="deleteUser('{{ user.id }}')">删除</a>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="7" style="text-align: center; color: #999;">暂无数据</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- 分页 -->
+    <div id="pagination" class="pagination-container"></div>
+    <div style="clear: both; padding-top: 10px; color: #666; font-size: 13px;">
+        共 {{ pagination.total }} 条， 当前第 {{ pagination.page }} / {{ pagination.pages }} 页
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    layui.use(['layer', 'laypage', 'form'], function(){
+        var layer = layui.layer;
+        var laypage = layui.laypage;
+        var form = layui.form;
+        var $ = layui.$;
+
+        // 渲染表单组件（复选框等）
+        form.render();
+
+        // 分页
+        laypage.render({
+            elem: 'pagination',
+            count: Number('{{ pagination.total }}'),
+            limit: Number('{{ pagination.per_page }}'),
+            curr: Number('{{ pagination.page }}'),
+            layout: ['limit', 'prev', 'page', 'next', 'skip'], // 自定义布局
+            jump: function(obj, first){
+                if(!first){
+                    window.location.href = "{{ url_for('admin.user_list') }}?page=" + obj.curr;
+                }
+            }
+        });
+
+        // 查看/编辑用户 (目前仅模拟弹窗)
+        window.viewUser = function(username, email, created_at) {
+            layer.open({
+                type: 1,
+                title: '编辑用户',
+                area: ['500px', '300px'],
+                content: '<div style="padding: 20px;">' +
+                         '<div class="layui-form-item"><label class="layui-form-label">用户名</label><div class="layui-input-block"><input type="text" value="'+username+'" class="layui-input" disabled></div></div>' +
+                         '<div class="layui-form-item"><label class="layui-form-label">邮箱</label><div class="layui-input-block"><input type="text" value="'+email+'" class="layui-input"></div></div>' +
+                         '<div style="text-align: center; margin-top: 20px;"><button class="layui-btn layui-btn-normal">保存</button></div>' +
+                         '</div>'
+            });
+        };
+
+        // 封禁/解封用户
+        window.toggleBan = function(userId, btn) {
+            $.post('/admin/users/' + userId + '/toggle_ban', function(res) {
+                if(res.status === 'success') {
+                    layer.msg(res.message, {icon: 1});
+                    setTimeout(function(){ location.reload(); }, 1000);
+                } else {
+                    layer.msg('操作失败', {icon: 2});
+                }
+            });
+        };
+
+        // 删除用户
+        window.deleteUser = function(userId) {
+            layer.confirm('确定要删除该用户吗？此操作不可恢复。', {icon: 3, title:'提示'}, function(index){
+                $.post('/admin/users/' + userId + '/delete', function(res) {
+                    if(res.status === 'success') {
+                        layer.msg(res.message, {icon: 1});
+                        setTimeout(function(){ location.reload(); }, 1000);
+                    } else {
+                        layer.msg(res.message, {icon: 2});
+                    }
+                });
+                layer.close(index);
+            });
+        };
+    });
+</script>
+{% endblock %}

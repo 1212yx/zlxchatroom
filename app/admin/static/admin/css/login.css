@@ -1,0 +1,179 @@
+body {
+    margin: 0;
+    padding: 0;
+    height: 100vh;
+    width: 100vw;
+    background: radial-gradient(circle at center, #0b2c4e 0%, #000000 100%);
+    font-family: "Microsoft YaHei", sans-serif;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+/* 模拟背景的科技线条效果 */
+body::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: 
+        linear-gradient(rgba(18, 113, 255, 0.1) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(18, 113, 255, 0.1) 1px, transparent 1px);
+    background-size: 50px 50px;
+    z-index: -1;
+}
+
+/* 右侧的大圆圈装饰 - 模拟 "START" 按钮区域 */
+.tech-circle {
+    position: absolute;
+    right: 15%;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 400px;
+    height: 400px;
+    border-radius: 50%;
+    border: 2px solid rgba(0, 255, 255, 0.2);
+    box-shadow: 0 0 50px rgba(0, 255, 255, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: pulse 4s infinite ease-in-out;
+}
+
+.tech-circle::after {
+    content: 'START';
+    font-size: 60px;
+    color: rgba(0, 255, 255, 0.8);
+    letter-spacing: 5px;
+    text-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+    font-weight: 300;
+}
+
+.tech-circle-inner {
+    position: absolute;
+    width: 70%;
+    height: 70%;
+    border-radius: 50%;
+    border: 10px solid rgba(0, 255, 255, 0.1);
+    border-top-color: rgba(0, 255, 255, 0.6);
+    animation: spin 10s linear infinite;
+}
+
+@keyframes pulse {
+    0% { box-shadow: 0 0 50px rgba(0, 255, 255, 0.1); }
+    50% { box-shadow: 0 0 80px rgba(0, 255, 255, 0.3); }
+    100% { box-shadow: 0 0 50px rgba(0, 255, 255, 0.1); }
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* 登录框容器 */
+.login-container {
+    position: absolute;
+    left: 15%;
+    width: 380px;
+    padding: 40px;
+    background: rgba(13, 42, 67, 0.8);
+    border-radius: 10px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(0, 255, 255, 0.1);
+}
+
+.login-header h2 {
+    color: #fff;
+    font-size: 24px;
+    text-align: center;
+    margin-bottom: 30px;
+    letter-spacing: 2px;
+    font-weight: 400;
+}
+
+/* 输入框样式重写 */
+.layui-form-item {
+    margin-bottom: 25px;
+    position: relative;
+}
+
+.layui-input {
+    background-color: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(0, 255, 255, 0.2);
+    color: #fff;
+    height: 45px;
+    padding-left: 45px;
+    border-radius: 4px;
+    transition: all 0.3s;
+}
+
+.layui-input:focus {
+    border-color: #00ffff;
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.2);
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.layui-input::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+/* 图标样式 */
+.input-icon {
+    position: absolute;
+    left: 15px;
+    top: 13px;
+    color: #00ffff;
+    font-size: 20px;
+    z-index: 10;
+}
+
+/* 按钮样式 */
+.login-btn {
+    width: 100%;
+    height: 45px;
+    line-height: 45px;
+    background: linear-gradient(90deg, #12c2e9, #c471ed, #f64f59); /* 备用渐变 */
+    background: linear-gradient(90deg, #00c6ff, #0072ff); /* 蓝色系渐变 */
+    border: none;
+    border-radius: 25px;
+    color: #fff;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.3s;
+    margin-top: 10px;
+    box-shadow: 0 5px 15px rgba(0, 114, 255, 0.4);
+}
+
+.login-btn:hover {
+    opacity: 0.9;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0, 114, 255, 0.6);
+}
+
+/* 辅助链接 */
+.login-links {
+    margin-top: 15px;
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.login-links a {
+    color: rgba(255, 255, 255, 0.6);
+    text-decoration: none;
+    transition: color 0.3s;
+}
+
+.login-links a:hover {
+    color: #00ffff;
+}
+
+.layui-form-checkbox[lay-skin=primary] span {
+    color: rgba(255, 255, 255, 0.6);
+}

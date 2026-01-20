@@ -1,0 +1,234 @@
+/* app/admin/static/admin/css/admin.css */
+
+/* 全局覆盖 */
+.layui-layout-admin .layui-header {
+    background-color: #fff !important;
+    border-bottom: 1px solid #f6f6f6;
+    box-shadow: 0 1px 2px 0 rgba(0,0,0,.05);
+}
+
+.layui-layout-admin .layui-logo {
+    background-color: #20222A; /* 侧边栏顶部Logo深色背景 */
+    color: #fff !important;
+    box-shadow: none !important;
+}
+
+/* 侧边栏样式 */
+.layui-side.layui-bg-black {
+    background-color: #20222A !important;
+}
+
+.layui-nav-tree .layui-nav-item a {
+    color: rgba(255,255,255,.7);
+}
+
+.layui-nav-tree .layui-nav-item a:hover {
+    color: #fff;
+    background-color: #009688; /* 悬停绿色 */
+}
+
+.layui-nav-tree .layui-this, 
+.layui-nav-tree .layui-this > a, 
+.layui-nav-tree .layui-nav-child dd.layui-this, 
+.layui-nav-tree .layui-nav-child dd.layui-this a {
+    background-color: #009688 !important;
+    color: #fff !important;
+}
+
+/* 顶部右侧菜单 */
+.layui-layout-right .layui-nav-item a {
+    color: #333 !important;
+}
+.layui-layout-right .layui-nav-item a:hover {
+    color: #009688 !important;
+}
+.layui-nav-more {
+    border-top-color: #666 !important;
+}
+.layui-nav-mored {
+    border-color: transparent transparent #666 !important;
+}
+
+/* 顶部左侧面包屑/折叠按钮区域 (模拟) */
+.header-left {
+    float: left;
+    padding-left: 20px;
+    height: 60px;
+    line-height: 60px;
+    margin-left: 200px; /* 避开左侧 Logo */
+    transition: margin-left .3s; /* 添加过渡效果 */
+}
+.collapse-btn {
+    padding: 0 15px;
+    cursor: pointer;
+    font-size: 20px;
+    color: #333;
+    vertical-align: middle;
+}
+.breadcrumb {
+    display: inline-block;
+    vertical-align: middle;
+    color: #999;
+    font-size: 14px;
+    margin-left: 10px;
+}
+.breadcrumb span {
+    margin: 0 5px;
+}
+.breadcrumb .current {
+    color: #666;
+}
+
+/* 内容区域背景 */
+.layui-body {
+    background-color: #f2f2f2; /* 浅灰背景 */
+    bottom: 0 !important; /* 覆盖 footer 空间 */
+}
+
+/* 顶部操作栏 */
+.page-toolbar {
+    background-color: #fff;
+    padding: 15px;
+    border-radius: 2px;
+    margin-bottom: 15px;
+    box-shadow: 0 1px 2px 0 rgba(0,0,0,.05);
+}
+
+/* 表格卡片 */
+.data-card {
+    background-color: #fff;
+    border-radius: 2px;
+    box-shadow: 0 1px 2px 0 rgba(0,0,0,.05);
+    padding: 15px;
+}
+
+/* 按钮样式微调 */
+.layui-btn {
+    border-radius: 2px;
+    height: 32px;
+    line-height: 32px;
+    font-size: 13px;
+    padding: 0 15px;
+}
+.layui-btn-sm {
+    height: 30px;
+    line-height: 30px;
+    padding: 0 10px;
+    font-size: 12px;
+}
+
+/* 表格样式微调 */
+.layui-table {
+    margin: 0;
+}
+.layui-table th {
+    font-weight: bold;
+    color: #666;
+    background-color: #fafafa;
+}
+.layui-table td, .layui-table th {
+    padding: 10px 15px;
+}
+
+/* 操作列链接样式 */
+.action-link {
+    color: #1E9FFF;
+    margin-right: 10px;
+    cursor: pointer;
+    text-decoration: none;
+}
+.action-link:hover {
+    color: #009688;
+}
+.action-link.delete {
+    color: #FF5722;
+}
+.action-link.delete:hover {
+    color: #FFB800;
+}
+
+/* 分页样式 */
+.pagination-container {
+    padding-top: 15px;
+    text-align: left; /* 靠左 */
+    color: #666;
+}
+
+/* ================= Dashboard 样式 ================= */
+.dashboard-stat-card {
+    border-radius: 4px;
+    padding: 25px 20px;
+    color: #fff;
+    margin-bottom: 15px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    transition: all 0.3s;
+}
+.dashboard-stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
+.dashboard-stat-card .stat-icon {
+    position: absolute;
+    right: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 50px;
+    opacity: 0.2;
+}
+.dashboard-stat-card .stat-value {
+    font-size: 36px;
+    font-weight: bold;
+    margin-bottom: 5px;
+    line-height: 1.2;
+}
+.dashboard-stat-card .stat-label {
+    font-size: 14px;
+    opacity: 0.9;
+}
+
+/* 颜色变体 */
+.bg-blue { background: linear-gradient(135deg, #1E9FFF, #0069d9); }
+.bg-green { background: linear-gradient(135deg, #009688, #006d63); }
+.bg-orange { background: linear-gradient(135deg, #FFB800, #d49a00); }
+.bg-red { background: linear-gradient(135deg, #FF5722, #d63805); }
+.bg-purple { background: linear-gradient(135deg, #a233c6, #7a1d9b); }
+
+/* 面板通用样式 */
+.layui-card-header {
+    border-bottom: 1px solid #f6f6f6;
+    font-weight: bold;
+    color: #333;
+}
+.layui-card-body {
+    padding: 15px;
+}
+
+/* 快捷入口 */
+.shortcut-btn {
+    display: block;
+    text-align: center;
+    padding: 20px 0;
+    background-color: #f8f8f8;
+    border-radius: 4px;
+    color: #666;
+    text-decoration: none;
+    transition: all 0.3s;
+    border: 1px solid #eee;
+}
+.shortcut-btn:hover {
+    background-color: #fff;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    color: #333;
+    border-color: #fff;
+}
+.shortcut-btn i {
+    display: block;
+    font-size: 32px;
+    margin-bottom: 10px;
+    color: #1E9FFF;
+}
+.shortcut-btn span {
+    font-size: 14px;
+}
