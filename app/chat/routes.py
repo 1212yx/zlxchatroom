@@ -1,6 +1,7 @@
 from flask import render_template, request, session, redirect, url_for
 from . import chat
-from app.extensions import sock
+from app.extensions import sock, db
+from app.models import WSServer
 import json
 from datetime import datetime
 
@@ -30,7 +31,9 @@ def login():
                 session['server'] = server
                 return redirect(url_for('chat.home'))
             
-    return render_template('chat/login.html', error=error)
+    # 获取所有激活的服务器
+    servers = WSServer.query.filter_by(is_active=True).all()
+    return render_template('chat/login.html', error=error, servers=servers)
 
 @chat.route('/register', methods=['GET', 'POST'])
 def register():

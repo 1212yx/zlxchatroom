@@ -1,11 +1,12 @@
-from flask import render_template, request, redirect, url_for, flash, session, current_app
+from flask import render_template, request, redirect, url_for, flash, session, current_app, jsonify
 from . import admin
-from ..models import AdminUser, User, Room
+from ..models import AdminUser, User, Room, WSServer, AIModel
 from ..extensions import db
 from functools import wraps
 import os
 import time
 from werkzeug.utils import secure_filename
+import openai
 
 # 管理员登录验证装饰器
 def admin_required(f):
@@ -15,6 +16,68 @@ def admin_required(f):
             return redirect(url_for('admin.login', next=request.url))
         return f(*args, **kwargs)
     return decorated_function
+
+@admin.route('/servers')
+@admin_required
+def servers():
+    page = request.args.get('page', 1, type=int)
+    pagination = WSServer.query.paginate(page=page, per_page=12, error_out=False)
+    servers = pagination.items
+    return render_template('admin/servers.html', servers=servers, pagination=pagination)
+
+@admin.route('/servers/add', methods=['POST'])
+@admin_required
+def add_server():
+    name = request.form.get('name')
+    address = request.form.get('address')
+    description = request.form.get('description')
+    
+    if WSServer.query.filter_by(name=name).first():
+        return {'status': 'error', 'message': '服务器名称已存在'}
+    
+    server = WSServer(name=name, address=address, description=description)
+    db.session.add(server)
+    db.session.commit()
+    return {'status': 'success', 'message': '添加成功'}
+
+@admin.route('/servers/<int:id>', methods=['GET'])
+@admin_required
+def get_server(id):
+    server = WSServer.query.get_or_404(id)
+    return {
+        'id': server.id,
+        'name': server.name,
+        'address': server.address,
+        'description': server.description,
+        'is_active': server.is_active,
+        'created_at': server.created_at.strftime('%Y-%m-%d %H:%M:%S')
+    }
+
+@admin.route('/servers/<int:id>/edit', methods=['POST'])
+@admin_required
+def edit_server(id):
+    server = WSServer.query.get_or_404(id)
+    server.name = request.form.get('name')
+    server.address = request.form.get('address')
+    server.description = request.form.get('description')
+    db.session.commit()
+    return {'status': 'success', 'message': '修改成功'}
+
+@admin.route('/servers/<int:id>/delete', methods=['POST'])
+@admin_required
+def delete_server(id):
+    server = WSServer.query.get_or_404(id)
+    db.session.delete(server)
+    db.session.commit()
+    return {'status': 'success', 'message': '删除成功'}
+
+@admin.route('/servers/<int:id>/toggle', methods=['POST'])
+@admin_required
+def toggle_server(id):
+    server = WSServer.query.get_or_404(id)
+    server.is_active = not server.is_active
+    db.session.commit()
+    return {'status': 'success', 'message': '状态更新成功'}
 
 @admin.route('/rooms')
 @admin_required
@@ -218,3 +281,120 @@ def security():
             return redirect(url_for('admin.logout'))
             
     return render_template('admin/security.html')
+
+# ================= AI Model Engine Routes =================
+
+@admin.route('/ai-models')
+@admin_required
+def ai_models():
+    page = request.args.get('page', 1, type=int)
+    per_page = 6
+    pagination = AIModel.query.order_by(AIModel.created_at.desc()).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+    models = pagination.items
+    return render_template('admin/ai_models.html', models=models, pagination=pagination)
+
+@admin.route('/ai-models/add', methods=['POST'])
+@admin_required
+def ai_model_add():
+    name = request.form.get('name')
+    api_url = request.form.get('api_url')
+    api_key = request.form.get('api_key')
+    model_name = request.form.get('model_name')
+    prompt = request.form.get('prompt')
+    
+    if not all([name, api_url, api_key, model_name]):
+        flash('请填写完整信息', 'danger')
+        return redirect(url_for('admin.ai_models'))
+        
+    model = AIModel(
+        name=name,
+        api_url=api_url,
+        api_key=api_key,
+        model_name=model_name,
+        prompt=prompt
+    )
+    db.session.add(model)
+    db.session.commit()
+    flash('模型添加成功', 'success')
+    return redirect(url_for('admin.ai_models'))
+
+@admin.route('/ai-models/edit/<int:id>', methods=['POST'])
+@admin_required
+def ai_model_edit(id):
+    model = AIModel.query.get_or_404(id)
+    model.name = request.form.get('name')
+    model.api_url = request.form.get('api_url')
+    model.api_key = request.form.get('api_key')
+    model.model_name = request.form.get('model_name')
+    model.prompt = request.form.get('prompt')
+    
+    db.session.commit()
+    flash('模型更新成功', 'success')
+    return redirect(url_for('admin.ai_models'))
+
+@admin.route('/ai-models/delete/<int:id>')
+@admin_required
+def ai_model_delete(id):
+    model = AIModel.query.get_or_404(id)
+    db.session.delete(model)
+    db.session.commit()
+    flash('模型已删除', 'success')
+    return redirect(url_for('admin.ai_models'))
+
+@admin.route('/ai-models/toggle/<int:id>')
+@admin_required
+def ai_model_toggle(id):
+    model = AIModel.query.get_or_404(id)
+    model.is_enabled = not model.is_enabled
+    db.session.commit()
+    status = '启用' if model.is_enabled else '禁用'
+    flash(f'模型已{status}', 'success')
+    return redirect(url_for('admin.ai_models'))
+
+@admin.route('/ai-models/test', methods=['POST'])
+@admin_required
+def ai_model_test():
+    data = request.json
+    api_url = data.get('api_url')
+    api_key = data.get('api_key')
+    model_name = data.get('model_name')
+    message = data.get('message')
+    history = data.get('history', [])
+    system_prompt = data.get('prompt', '')
+
+    try:
+        client = openai.OpenAI(
+            api_key=api_key,
+            base_url=api_url
+        )
+        
+        messages = []
+        # Add system prompt with Chinese instruction
+        if system_prompt:
+            # Append strong instruction to user provided prompt
+            system_prompt += "\n\nIMPORTANT: You must output in Chinese language only. 无论用户使用什么语言，请始终用中文回答。"
+            messages.append({"role": "system", "content": system_prompt})
+        else:
+            messages.append({"role": "system", "content": "You are a helpful assistant. Please answer in Chinese. 你是一个乐于助人的助手，请始终用中文回答所有问题。"})
+            
+        # Add history
+        if history:
+            messages.extend(history)
+            
+        # Add current message if provided separately
+        if message:
+            messages.append({"role": "user", "content": message})
+
+        response = client.chat.completions.create(
+            model=model_name,
+            messages=messages,
+            max_tokens=2048,
+            temperature=0.7
+        )
+        
+        reply = response.choices[0].message.content
+        return jsonify({'success': True, 'reply': reply})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
