@@ -1,42 +1,151 @@
-{% extends "base.html" %}
+{% extends "admin/layout.html" %}
 
-{% block title %}后台管理 - ZLX Chatroom{% endblock %}
+{% block title %}后台首页 - 智联星队{% endblock %}
+{% block breadcrumb %}首页{% endblock %}
 
 {% block content %}
-<div class="row">
-    <div class="col-md-12">
-        <h1>系统后台管理</h1>
-        <p>仅限管理员访问。</p>
-        <table class="table table-striped">
-            <thead>
-                <tr>
-                    <th scope="col">#</th>
-                    <th scope="col">模块</th>
-                    <th scope="col">状态</th>
-                    <th scope="col">操作</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <th scope="row">1</th>
-                    <td>Chat</td>
-                    <td><span class="badge bg-success">运行中</span></td>
-                    <td><button class="btn btn-sm btn-warning">配置</button></td>
-                </tr>
-                <tr>
-                    <th scope="row">2</th>
-                    <td>Bot</td>
-                    <td><span class="badge bg-success">运行中</span></td>
-                    <td><button class="btn btn-sm btn-warning">配置</button></td>
-                </tr>
-                 <tr>
-                    <th scope="row">3</th>
-                    <td>Game</td>
-                    <td><span class="badge bg-success">运行中</span></td>
-                    <td><button class="btn btn-sm btn-warning">配置</button></td>
-                </tr>
-            </tbody>
-        </table>
+<div class="layui-row layui-col-space15">
+    <!-- 数据统计卡片 -->
+    <div class="layui-col-md3">
+        <div class="dashboard-stat-card bg-blue">
+            <div class="stat-value">{{ user_count }}</div>
+            <div class="stat-label">用户总数</div>
+            <i class="layui-icon layui-icon-user stat-icon"></i>
+        </div>
+    </div>
+    <div class="layui-col-md3">
+        <div class="dashboard-stat-card bg-green">
+            <div class="stat-value">{{ new_users_today }}</div>
+            <div class="stat-label">今日新增</div>
+            <i class="layui-icon layui-icon-chart stat-icon"></i>
+        </div>
+    </div>
+    <div class="layui-col-md3">
+        <div class="dashboard-stat-card bg-orange">
+            <div class="stat-value">{{ banned_count }}</div>
+            <div class="stat-label">封禁用户</div>
+            <i class="layui-icon layui-icon-close-fill stat-icon"></i>
+        </div>
+    </div>
+    <div class="layui-col-md3">
+        <div class="dashboard-stat-card bg-purple">
+            <div class="stat-value">{{ admin_count }}</div>
+            <div class="stat-label">管理员</div>
+            <i class="layui-icon layui-icon-friends stat-icon"></i>
+        </div>
     </div>
 </div>
+
+<div class="layui-row layui-col-space15">
+    <!-- 快捷入口 -->
+    <div class="layui-col-md8">
+        <div class="layui-card">
+            <div class="layui-card-header">快捷入口</div>
+            <div class="layui-card-body">
+                <div class="layui-row layui-col-space15">
+                    <div class="layui-col-xs6 layui-col-md3">
+                        <a href="{{ url_for('admin.user_list') }}" class="shortcut-btn">
+                            <i class="layui-icon layui-icon-user"></i>
+                            <span>用户管理</span>
+                        </a>
+                    </div>
+                    <div class="layui-col-xs6 layui-col-md3">
+                        <a href="javascript:;" class="shortcut-btn" onclick="layer.msg('开发中...')">
+                            <i class="layui-icon layui-icon-set"></i>
+                            <span>系统设置</span>
+                        </a>
+                    </div>
+                    <div class="layui-col-xs6 layui-col-md3">
+                        <a href="javascript:;" class="shortcut-btn" onclick="layer.msg('开发中...')">
+                            <i class="layui-icon layui-icon-log"></i>
+                            <span>操作日志</span>
+                        </a>
+                    </div>
+                    <div class="layui-col-xs6 layui-col-md3">
+                        <a href="{{ url_for('admin.logout') }}" class="shortcut-btn">
+                            <i class="layui-icon layui-icon-logout" style="color: #FF5722;"></i>
+                            <span>退出登录</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="layui-card">
+            <div class="layui-card-header">系统公告</div>
+            <div class="layui-card-body">
+                <div style="padding: 10px; background-color: #f2f2f2; border-left: 5px solid #009688;">
+                    <p>欢迎使用智联星队后台管理系统！当前版本 V1.0.0。</p>
+                    <p style="margin-top: 5px; color: #999; font-size: 12px;">这里可以展示系统更新日志或重要通知。</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 系统信息 -->
+    <div class="layui-col-md4">
+        <div class="layui-card">
+            <div class="layui-card-header">系统信息</div>
+            <div class="layui-card-body layui-text">
+                <table class="layui-table">
+                    <colgroup>
+                        <col width="100">
+                        <col>
+                    </colgroup>
+                    <tbody>
+                        <tr>
+                            <td>当前用户</td>
+                            <td>{{ admin_user }}</td>
+                        </tr>
+                        <tr>
+                            <td>服务器时间</td>
+                            <td id="server-time">加载中...</td>
+                        </tr>
+                        <tr>
+                            <td>操作系统</td>
+                            <td>Windows</td>
+                        </tr>
+                        <tr>
+                            <td>Python</td>
+                            <td>3.x</td>
+                        </tr>
+                        <tr>
+                            <td>Flask</td>
+                            <td>2.x</td>
+                        </tr>
+                        <tr>
+                            <td>Layui</td>
+                            <td>v2.13.3</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <div class="layui-card">
+            <div class="layui-card-header">联系我们</div>
+            <div class="layui-card-body">
+                <p>技术支持：智联星队开发组</p>
+                <p>联系邮箱：support@zlxchatroom.com</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    layui.use(['layer'], function(){
+        var layer = layui.layer;
+        var $ = layui.$;
+
+        // 更新时间
+        function updateTime() {
+            var now = new Date();
+            $('#server-time').text(now.toLocaleString());
+        }
+        updateTime();
+        setInterval(updateTime, 1000);
+    });
+</script>
 {% endblock %}

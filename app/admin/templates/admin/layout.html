@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>{% block title %}智联星队后台管理系统{% endblock %}</title>
+    <meta name="renderer" content="webkit">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <!-- 引用 Layui CSS -->
+    <link rel="stylesheet" href="{{ url_for('admin.static', filename='admin/layui/layui-v2.13.3/layui/css/layui.css') }}" media="all">
+    <!-- 引用自定义 Admin CSS -->
+    <link rel="stylesheet" href="{{ url_for('admin.static', filename='admin/css/admin.css') }}">
+</head>
+<body class="layui-layout-body">
+<div class="layui-layout layui-layout-admin">
+    <div class="layui-header">
+        <div class="layui-logo">
+            <i class="layui-icon layui-icon-template-1" style="margin-right: 5px;"></i> 智联星队后台
+        </div>
+        
+        <!-- 头部左侧：折叠按钮 + 面包屑 -->
+        <div class="header-left">
+            <i class="layui-icon layui-icon-shrink-right collapse-btn" id="collapse-btn"></i>
+            <div class="breadcrumb">
+                Dashboard <span>/</span> <span class="current">{% block breadcrumb %}首页{% endblock %}</span>
+            </div>
+        </div>
+
+        <!-- 头部右侧：用户信息 -->
+        <ul class="layui-nav layui-layout-right">
+            <li class="layui-nav-item">
+                <a href="javascript:;">
+                    <img src="{{ url_for('admin.static', filename='admin/avatars/' + current_admin.avatar) if current_admin and current_admin.avatar else 'http://t.cn/RCzsdCq' }}" class="layui-nav-img">
+                    {{ current_admin.nickname or current_admin.username if current_admin else '管理员' }}
+                </a>
+                <dl class="layui-nav-child">
+                    <dd><a href="{{ url_for('admin.profile') }}">基本资料</a></dd>
+                    <dd><a href="{{ url_for('admin.security') }}">安全设置</a></dd>
+                </dl>
+            </li>
+            <li class="layui-nav-item"><a href="{{ url_for('admin.logout') }}">退出</a></li>
+        </ul>
+    </div>
+
+    <!-- 侧边栏 -->
+    <div class="layui-side layui-bg-black">
+        <div class="layui-side-scroll">
+            <ul class="layui-nav layui-nav-tree" lay-filter="test">
+                <!-- 首页 -->
+                <li class="layui-nav-item {% if request.endpoint == 'admin.index' %}layui-this{% endif %}">
+                    <a href="{{ url_for('admin.index') }}">
+                        <i class="layui-icon layui-icon-home" style="margin-right: 10px;"></i> Dashboard
+                    </a>
+                </li>
+
+                <!-- 用户管理 (展开状态) -->
+                <li class="layui-nav-item layui-nav-itemed">
+                    <a href="javascript:;">
+                        <i class="layui-icon layui-icon-user" style="margin-right: 10px;"></i> 用户管理
+                    </a>
+                    <dl class="layui-nav-child">
+                        <dd class="{% if request.endpoint == 'admin.user_list' %}layui-this{% endif %}">
+                            <a href="{{ url_for('admin.user_list') }}">用户列表</a>
+                        </dd>
+                        <!-- 占位菜单，模仿图片 -->
+                        <dd><a href="javascript:;">管理员管理</a></dd>
+                    </dl>
+                </li>
+
+                <!-- 房间管理 -->
+                <li class="layui-nav-item {% if 'rooms' in request.endpoint %}layui-nav-itemed{% endif %}">
+                    <a href="javascript:;">
+                        <i class="layui-icon layui-icon-app" style="margin-right: 10px;"></i> 房间管理
+                    </a>
+                    <dl class="layui-nav-child">
+                        <dd class="{% if request.endpoint == 'admin.rooms' %}layui-this{% endif %}">
+                            <a href="{{ url_for('admin.rooms') }}">房间列表</a>
+                        </dd>
+                    </dl>
+                </li>
+
+                <!-- 模拟其他菜单已移除 -->
+            </ul>
+        </div>
+    </div>
+
+    <div class="layui-body">
+        <!-- 内容主体区域 -->
+        <div style="padding: 15px;">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="layui-alert layui-alert-{{ category }}" style="margin-bottom: 15px; padding: 10px; background: #fff; border-left: 5px solid #009688;">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+            
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+
+    <!-- 去掉底部固定区域，参考图没有明显的底部Footer -->
+</div>
+
+<script src="{{ url_for('admin.static', filename='admin/layui/layui-v2.13.3/layui/layui.js') }}"></script>
+<script>
+    layui.use(['element', 'layer'], function(){
+        var element = layui.element;
+        var layer = layui.layer;
+        var $ = layui.$;
+
+        // 折叠侧边栏逻辑 (简单模拟)
+        $('#collapse-btn').on('click', function(){
+            var side = $('.layui-side');
+            var body = $('.layui-body');
+            var footer = $('.layui-footer');
+            var headerLeft = $('.header-left');
+            var logo = $('.layui-logo');
+            
+            if(side.width() > 50) {
+                // 折叠
+                side.width(0);
+                body.css('left', 0);
+                headerLeft.css('margin-left', 0);
+                logo.hide();
+                $(this).removeClass('layui-icon-shrink-right').addClass('layui-icon-spread-left');
+            } else {
+                // 展开
+                side.width(200);
+                body.css('left', 200);
+                headerLeft.css('margin-left', '200px');
+                logo.show();
+                $(this).removeClass('layui-icon-spread-left').addClass('layui-icon-shrink-right');
+            }
+        });
+    });
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>
