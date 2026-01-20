@@ -104,12 +104,24 @@
 
 /* 按钮样式微调 */
 .layui-btn {
-    border-radius: 2px;
+    border-radius: 100px; /* 全局圆角 */
     height: 32px;
     line-height: 32px;
     font-size: 13px;
     padding: 0 15px;
 }
+
+/* 修正按钮组的圆角 */
+.layui-btn-group .layui-btn {
+    border-radius: 0 !important;
+}
+.layui-btn-group .layui-btn:first-child {
+    border-radius: 100px 0 0 100px !important;
+}
+.layui-btn-group .layui-btn:last-child {
+    border-radius: 0 100px 100px 0 !important;
+}
+
 .layui-btn-sm {
     height: 30px;
     line-height: 30px;

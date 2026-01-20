@@ -1,6 +1,6 @@
 from flask import render_template, request, redirect, url_for, flash, session, current_app
 from . import admin
-from ..models import AdminUser, User
+from ..models import AdminUser, User, Room
 from ..extensions import db
 from functools import wraps
 import os
@@ -15,6 +15,60 @@ def admin_required(f):
             return redirect(url_for('admin.login', next=request.url))
         return f(*args, **kwargs)
     return decorated_function
+
+@admin.route('/rooms')
+@admin_required
+def rooms():
+    page = request.args.get('page', 1, type=int)
+    pagination = Room.query.paginate(page=page, per_page=12, error_out=False)
+    rooms = pagination.items
+    return render_template('admin/rooms.html', rooms=rooms, pagination=pagination)
+
+@admin.route('/rooms/<int:room_id>/members')
+@admin_required
+def room_members(room_id):
+    room = Room.query.get_or_404(room_id)
+    members = []
+    for m in room.members:
+        members.append({
+            'id': m.id,
+            'username': m.username,
+            'is_banned': m.is_banned
+        })
+    return {'code': 0, 'data': members, 'count': len(members)}
+
+@admin.route('/rooms/<int:room_id>/delete', methods=['POST'])
+@admin_required
+def delete_room(room_id):
+    room = Room.query.get_or_404(room_id)
+    db.session.delete(room)
+    db.session.commit()
+    return {'status': 'success', 'message': '房间已删除'}
+
+@admin.route('/rooms/<int:room_id>/toggle_ban', methods=['POST'])
+@admin_required
+def toggle_room_ban(room_id):
+    room = Room.query.get_or_404(room_id)
+    room.is_banned = not room.is_banned
+    db.session.commit()
+    status = '封禁' if room.is_banned else '解封'
+    return {'status': 'success', 'message': f'房间已{status}', 'is_banned': room.is_banned}
+
+@admin.route('/rooms/<int:room_id>')
+@admin_required
+def view_room(room_id):
+    # 返回房间详情用于弹窗
+    room = Room.query.get_or_404(room_id)
+    return {
+        'id': room.id,
+        'name': room.name,
+        'description': room.description,
+        'creator': room.creator.username if room.creator else '未知',
+        'created_at': room.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+        'member_count': room.members.count(),
+        'banned_count': room.members.filter_by(is_banned=True).count(),
+        'is_banned': room.is_banned
+    }
 
 @admin.route('/login', methods=['GET', 'POST'])
 def login():

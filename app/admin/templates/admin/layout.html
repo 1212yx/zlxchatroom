@@ -67,6 +67,18 @@
                     </dl>
                 </li>
 
+                <!-- 房间管理 -->
+                <li class="layui-nav-item {% if 'rooms' in request.endpoint %}layui-nav-itemed{% endif %}">
+                    <a href="javascript:;">
+                        <i class="layui-icon layui-icon-app" style="margin-right: 10px;"></i> 房间管理
+                    </a>
+                    <dl class="layui-nav-child">
+                        <dd class="{% if request.endpoint == 'admin.rooms' %}layui-this{% endif %}">
+                            <a href="{{ url_for('admin.rooms') }}">房间列表</a>
+                        </dd>
+                    </dl>
+                </li>
+
                 <!-- 模拟其他菜单已移除 -->
             </ul>
         </div>

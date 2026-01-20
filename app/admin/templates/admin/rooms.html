@@ -1,0 +1,153 @@
+{% extends "admin/layout.html" %}
+
+{% block breadcrumb %}房间管理 / 房间列表{% endblock %}
+
+{% block content %}
+<div class="layui-row layui-col-space15">
+    {% for room in rooms %}
+    <div class="layui-col-md3 layui-col-sm6">
+        <div class="layui-card">
+            <div class="layui-card-header">
+                {{ room.name }}
+                {% if room.is_banned %}
+                <span class="layui-badge">封禁</span>
+                {% else %}
+                <span class="layui-badge layui-bg-green">正常</span>
+                {% endif %}
+            </div>
+            <div class="layui-card-body">
+                <p style="margin-bottom: 5px;">创建人：<span class="layui-badge layui-bg-cyan">{{ room.creator.username if room.creator else '未知' }}</span></p>
+                <p style="margin-bottom: 5px;">成员数：<span class="layui-badge layui-bg-blue">{{ room.members.count() }}</span></p>
+                <p style="margin-bottom: 5px;">封禁用户数：<span class="layui-badge layui-bg-red">{{ room.members.filter_by(is_banned=True).count() }}</span></p>
+                <p style="margin-bottom: 10px; color: #999;">创建时间：{{ room.created_at.strftime('%Y-%m-%d') }}</p>
+                <hr>
+                <div style="text-align: center; margin-top: 15px;">
+                    <button class="layui-btn layui-btn-sm layui-btn-primary btn-view-members" data-id="{{ room.id }}" data-name="{{ room.name }}" title="查看成员" style="margin: 0 4px;">
+                        <i class="layui-icon layui-icon-user"></i>
+                    </button>
+                    <button class="layui-btn layui-btn-sm layui-btn-normal btn-view-room" data-id="{{ room.id }}" title="详情" style="margin: 0 4px;">
+                        <i class="layui-icon layui-icon-file"></i>
+                    </button>
+                    <button class="layui-btn layui-btn-sm layui-btn-warm btn-toggle-ban" data-id="{{ room.id }}" title="{{ '解封' if room.is_banned else '封禁' }}" style="margin: 0 4px;">
+                        <i class="layui-icon {{ 'layui-icon-ok-circle' if room.is_banned else 'layui-icon-close-circle' }}"></i>
+                    </button>
+                    <button class="layui-btn layui-btn-sm layui-btn-danger btn-delete-room" data-id="{{ room.id }}" title="删除" style="margin: 0 4px;">
+                        <i class="layui-icon layui-icon-delete"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- 分页 -->
+<div id="pagination" style="text-align: center; margin-top: 20px;" data-total="{{ pagination.total }}" data-page="{{ pagination.page }}"></div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+layui.use(['laypage', 'layer', 'table'], function(){
+    var laypage = layui.laypage;
+    var layer = layui.layer;
+    var table = layui.table;
+    var $ = layui.$;
+    
+    // 获取分页数据
+    var total = parseInt($('#pagination').data('total'));
+    var curr = parseInt($('#pagination').data('page'));
+
+    // 分页
+    laypage.render({
+        elem: 'pagination',
+        count: total,
+        limit: 12,
+        curr: curr,
+        layout: ['count', 'prev', 'page', 'next', 'skip'],
+        jump: function(obj, first){
+            if(!first){
+                location.href = "{{ url_for('admin.rooms') }}?page=" + obj.curr;
+            }
+        }
+    });
+    
+    // 查看成员
+    $(document).on('click', '.btn-view-members', function(){
+        var id = $(this).data('id');
+        var name = $(this).data('name');
+        
+        layer.open({
+            type: 1,
+            title: name + ' - 成员列表',
+            area: ['600px', '400px'],
+            content: '<div style="padding: 10px;"><table id="memberTable" lay-filter="memberTable"></table></div>',
+            success: function(layero, index){
+                table.render({
+                    elem: '#memberTable',
+                    url: '/admin/rooms/' + id + '/members',
+                    page: false,
+                    cols: [[
+                        {field: 'id', title: 'ID', width: 80, sort: true},
+                        {field: 'username', title: '用户名'},
+                        {field: 'is_banned', title: '状态', templet: function(d){
+                            return d.is_banned ? '<span class="layui-badge">封禁</span>' : '<span class="layui-badge layui-bg-green">正常</span>';
+                        }}
+                    ]]
+                });
+            }
+        });
+    });
+
+    // 查看详情
+    $(document).on('click', '.btn-view-room', function(){
+        var id = $(this).data('id');
+        $.get('/admin/rooms/' + id, function(res){
+            var content = '<div style="padding: 20px; line-height: 2;">' +
+                '<p><strong>ID:</strong> ' + res.id + '</p>' +
+                '<p><strong>名称:</strong> ' + res.name + '</p>' +
+                '<p><strong>创建人:</strong> ' + res.creator + '</p>' +
+                '<p><strong>描述:</strong> ' + (res.description || '无') + '</p>' +
+                '<p><strong>创建时间:</strong> ' + res.created_at + '</p>' +
+                '<p><strong>成员数:</strong> ' + res.member_count + '</p>' +
+                '<p><strong>封禁用户数:</strong> ' + res.banned_count + '</p>' +
+                '<p><strong>状态:</strong> ' + (res.is_banned ? '封禁' : '正常') + '</p>' +
+                '</div>';
+            
+            layer.open({
+                type: 1,
+                title: '房间详情',
+                area: ['400px', '450px'],
+                content: content,
+                shadeClose: true
+            });
+        });
+    });
+
+    // 封禁/解封
+    $(document).on('click', '.btn-toggle-ban', function(){
+        var id = $(this).data('id');
+        $.post('/admin/rooms/' + id + '/toggle_ban', function(res){
+            if(res.status === 'success'){
+                layer.msg(res.message);
+                setTimeout(function(){ location.reload(); }, 1000);
+            }
+        });
+    });
+
+    // 删除
+    $(document).on('click', '.btn-delete-room', function(){
+        var id = $(this).data('id');
+        layer.confirm('确定删除该房间吗？', {icon: 3, title:'提示'}, function(index){
+            $.post('/admin/rooms/' + id + '/delete', function(res){
+                if(res.status === 'success'){
+                    layer.msg(res.message);
+                    setTimeout(function(){ location.reload(); }, 1000);
+                }
+            });
+            layer.close(index);
+        });
+    });
+});
+</script>
+{% endblock %}

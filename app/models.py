@@ -21,6 +21,31 @@ class User(UserMixin, db.Model):
     def __repr__(self):
         return f'<User {self.username}>'
 
+# 房间成员关联表
+room_members = db.Table('room_members',
+    db.Column('user_id', db.Integer, db.ForeignKey('users.id'), primary_key=True),
+    db.Column('room_id', db.Integer, db.ForeignKey('rooms.id'), primary_key=True)
+)
+
+class Room(db.Model):
+    __tablename__ = 'rooms'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(64), unique=True, index=True)
+    description = db.Column(db.String(256))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    is_banned = db.Column(db.Boolean, default=False)
+    
+    # 创建人
+    creator_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    creator = db.relationship('User', foreign_keys=[creator_id], backref=db.backref('created_rooms', lazy='dynamic'))
+
+    # 关系
+    members = db.relationship('User', secondary=room_members, lazy='dynamic',
+        backref=db.backref('rooms', lazy='dynamic'))
+
+    def __repr__(self):
+        return f'<Room {self.name}>'
+
 class AdminUser(UserMixin, db.Model):
     __tablename__ = 'admin_users'
     id = db.Column(db.Integer, primary_key=True)
