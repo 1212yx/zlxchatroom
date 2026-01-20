@@ -46,7 +46,7 @@
             <div class="chat-top-bar">
                 <div style="font-weight: bold;">{{ server }}</div>
                 <div>
-                    <i class="fas fa-ellipsis-h" style="color: #8b949e; cursor: pointer;"></i>
+                    <i class="fas fa-ellipsis-h" style="color: #8b949e; cursor: pointer;" onclick="toggleUserSidebar()" title="在线用户"></i>
                 </div>
             </div>
             
@@ -67,6 +67,17 @@
                     <button class="btn-login" id="sendBtn" style="width: auto; padding: 5px 20px; font-size: 14px;">发送</button>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- User Sidebar -->
+    <div class="user-sidebar" id="userSidebar">
+        <div class="user-sidebar-header">
+            <span>在线用户(<span id="userCount">0</span>)</span>
+            <i class="fas fa-times close-sidebar" onclick="toggleUserSidebar()"></i>
+        </div>
+        <div class="user-list" id="userList">
+            <!-- User items injected here -->
         </div>
     </div>
 
@@ -95,7 +106,11 @@
             
             ws.onmessage = function(event) {
                 const msg = JSON.parse(event.data);
-                appendMessage(msg);
+                if (msg.type === 'users') {
+                    updateUserList(msg.users, msg.count);
+                } else {
+                    appendMessage(msg);
+                }
             };
             
             ws.onclose = function() {
@@ -157,6 +172,30 @@
                 }));
                 input.val('');
             }
+        }
+        
+        function toggleUserSidebar() {
+            $('.user-sidebar').toggleClass('active');
+        }
+
+        function updateUserList(users, count) {
+            $('#userCount').text(count);
+            const list = $('#userList');
+            list.empty();
+            users.forEach(u => {
+                const isSelf = u === user;
+                const html = `
+                    <div class="user-item">
+                        <div class="avatar" style="width: 30px; height: 30px; font-size: 12px; background: ${isSelf ? '#1f6feb' : '#238636'}">
+                            ${u[0].toUpperCase()}
+                        </div>
+                        <div class="user-name" style="${isSelf ? 'color: #58a6ff;' : ''}">
+                            ${u} ${isSelf ? '(我)' : ''}
+                        </div>
+                    </div>
+                `;
+                list.append(html);
+            });
         }
     </script>
 </body>

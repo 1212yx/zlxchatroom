@@ -7,6 +7,7 @@ class User(UserMixin, db.Model):
     __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(64), unique=True, index=True)
+    nickname = db.Column(db.String(64))  # Added nickname field
     email = db.Column(db.String(120), unique=True, index=True)
     password_hash = db.Column(db.String(128))
     is_banned = db.Column(db.Boolean, default=False)  # 封禁状态
@@ -69,6 +70,7 @@ class Message(db.Model):
     content = db.Column(db.Text)
     timestamp = db.Column(db.DateTime, index=True, default=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    room_id = db.Column(db.Integer, db.ForeignKey('rooms.id'))
     
     # 建立关系
     author = db.relationship('User', backref=db.backref('messages', lazy='dynamic'))
