@@ -16,7 +16,7 @@ ws_user_map = {}
 def login():
     error = None
     if request.method == 'POST':
-        username = request.form.get('nickname') # Using 'nickname' field from login form as username
+        username = request.form.get('username') # Using 'username' field from login form
         password = request.form.get('password')
         server = request.form.get('server')
         

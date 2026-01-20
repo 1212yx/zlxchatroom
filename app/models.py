@@ -102,4 +102,15 @@ class AIModel(db.Model):
     def __repr__(self):
         return f'<AIModel {self.name}>'
 
+class ThirdPartyApi(db.Model):
+    __tablename__ = 'third_party_apis'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(64), nullable=False)
+    command = db.Column(db.String(32), unique=True, nullable=False) # e.g. @weather
+    url = db.Column(db.String(256), nullable=False)
+    token = db.Column(db.String(256), nullable=True)
+    is_enabled = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+    def __repr__(self):
+        return f'<ThirdPartyApi {self.name}>'
