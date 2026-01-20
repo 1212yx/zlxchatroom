@@ -43,9 +43,9 @@
                     <i class="fas fa-server form-icon"></i>
                     <select name="server" class="form-control" required>
                         <option value="" selected disabled>请选择服务器</option>
-                        <option value="智联星队主服">服务器 01 (推荐)</option>
-                        <option value="技术交流群">服务器 02 (技术)</option>
-                        <option value="开发测试服">服务器 03 (测试)</option>
+                        {% for server in servers %}
+                        <option value="{{ server.address }}">{{ server.name }} ({{ server.address }})</option>
+                        {% endfor %}
                     </select>
                     <i class="fas fa-chevron-down select-arrow"></i>
                 </div>

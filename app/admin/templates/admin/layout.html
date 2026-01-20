@@ -22,7 +22,7 @@
         <div class="header-left">
             <i class="layui-icon layui-icon-shrink-right collapse-btn" id="collapse-btn"></i>
             <div class="breadcrumb">
-                Dashboard <span>/</span> <span class="current">{% block breadcrumb %}首页{% endblock %}</span>
+                控制台 <span>/</span> <span class="current">{% block breadcrumb %}首页{% endblock %}</span>
             </div>
         </div>
 
@@ -49,7 +49,7 @@
                 <!-- 首页 -->
                 <li class="layui-nav-item {% if request.endpoint == 'admin.index' %}layui-this{% endif %}">
                     <a href="{{ url_for('admin.index') }}">
-                        <i class="layui-icon layui-icon-home" style="margin-right: 10px;"></i> Dashboard
+                        <i class="layui-icon layui-icon-home" style="margin-right: 10px;"></i> 控制台
                     </a>
                 </li>
 
@@ -67,16 +67,24 @@
                     </dl>
                 </li>
 
-                <!-- 房间管理 -->
-                <li class="layui-nav-item {% if 'rooms' in request.endpoint %}layui-nav-itemed{% endif %}">
-                    <a href="javascript:;">
-                        <i class="layui-icon layui-icon-app" style="margin-right: 10px;"></i> 房间管理
-                    </a>
+                <!-- 采集管理 -->
+                <li class="layui-nav-item {{ 'layui-nav-itemed' if request.path.startswith('/admin/rooms') or request.path.startswith('/admin/servers') else '' }}">
+                    <a href="javascript:;"><i class="layui-icon layui-icon-app"></i><span class="menu-text"> 采集管理</span></a>
                     <dl class="layui-nav-child">
-                        <dd class="{% if request.endpoint == 'admin.rooms' %}layui-this{% endif %}">
-                            <a href="{{ url_for('admin.rooms') }}">房间列表</a>
+                        <dd class="{{ 'layui-this' if request.path.startswith('/admin/rooms') else '' }}">
+                            <a href="{{ url_for('admin.rooms') }}">房间管理</a>
+                        </dd>
+                        <dd class="{{ 'layui-this' if request.path.startswith('/admin/servers') else '' }}">
+                            <a href="{{ url_for('admin.servers') }}">ws服务器管理</a>
                         </dd>
                     </dl>
+                </li>
+
+                <!-- AI模型引擎 -->
+                <li class="layui-nav-item {% if request.path.startswith('/admin/ai-models') %}layui-this{% endif %}">
+                    <a href="{{ url_for('admin.ai_models') }}">
+                        <i class="layui-icon layui-icon-engine" style="margin-right: 10px;"></i> AI模型引擎
+                    </a>
                 </li>
 
                 <!-- 模拟其他菜单已移除 -->

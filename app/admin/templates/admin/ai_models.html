@@ -1,0 +1,588 @@
+{% extends "admin/layout.html" %}
+
+{% block title %}AI模型引擎 - 智联星队后台{% endblock %}
+
+{% block breadcrumb %}AI模型引擎{% endblock %}
+
+{% block content %}
+<!-- Google Fonts for Sci-Fi look -->
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
+
+<style>
+    :root {
+        --neon-cyan: #00f3ff;
+        --neon-blue: #0066ff;
+        --neon-purple: #bc13fe;
+        --dark-bg: #050a10;
+        --panel-bg: rgba(10, 20, 30, 0.7);
+        --grid-color: rgba(0, 243, 255, 0.1);
+    }
+
+    /* Global Page Overrides */
+    .layui-body {
+        background-color: var(--dark-bg) !important;
+        background-image: 
+            linear-gradient(var(--grid-color) 1px, transparent 1px),
+            linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+        background-size: 30px 30px;
+        background-position: center center;
+        font-family: 'Rajdhani', 'Segoe UI', sans-serif;
+    }
+
+    /* Toolbar */
+    .page-toolbar {
+        background: rgba(5, 10, 16, 0.9) !important;
+        border-bottom: 1px solid var(--neon-cyan);
+        box-shadow: 0 0 15px rgba(0, 243, 255, 0.2);
+        padding: 15px;
+        display: flex;
+        align-items: center;
+        backdrop-filter: blur(5px);
+    }
+
+    /* Sci-Fi Buttons */
+    .btn-sci-fi {
+        background: rgba(0, 243, 255, 0.1);
+        border: 1px solid var(--neon-cyan);
+        color: var(--neon-cyan);
+        font-family: 'Orbitron', sans-serif;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        position: relative;
+        overflow: hidden;
+        transition: all 0.3s ease;
+        clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+    }
+
+    .btn-sci-fi:hover {
+        background: var(--neon-cyan);
+        color: #000;
+        box-shadow: 0 0 20px var(--neon-cyan);
+        text-shadow: none;
+    }
+
+    .btn-sci-fi::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+        transition: 0.5s;
+    }
+
+    .btn-sci-fi:hover::before {
+        left: 100%;
+    }
+
+    .btn-sci-fi-danger {
+        background: rgba(255, 51, 102, 0.1);
+        border: 1px solid #ff3366;
+        color: #ff3366;
+        clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+    }
+
+    .btn-sci-fi-danger:hover {
+        background: #ff3366;
+        color: #fff;
+        box-shadow: 0 0 20px #ff3366;
+    }
+
+    /* Sci-Fi Card */
+    .ai-model-card {
+        background: var(--panel-bg);
+        border: 1px solid rgba(0, 243, 255, 0.3);
+        position: relative;
+        margin-bottom: 20px;
+        transition: all 0.3s ease;
+        backdrop-filter: blur(10px);
+        clip-path: polygon(
+            20px 0, 100% 0, 
+            100% calc(100% - 20px), calc(100% - 20px) 100%, 
+            0 100%, 0 20px
+        );
+    }
+
+    .ai-model-card::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        border: 1px solid transparent;
+        background: linear-gradient(135deg, var(--neon-cyan) 0%, transparent 5%, transparent 95%, var(--neon-cyan) 100%) border-box;
+        -webkit-mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
+        -webkit-mask-composite: xor;
+        mask-composite: exclude;
+        pointer-events: none;
+    }
+
+    .ai-model-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 0 30px rgba(0, 243, 255, 0.15);
+        border-color: var(--neon-cyan);
+    }
+
+    .ai-card-header {
+        padding: 15px 20px;
+        background: linear-gradient(90deg, rgba(0, 243, 255, 0.1), transparent);
+        border-bottom: 1px solid rgba(0, 243, 255, 0.2);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .ai-card-title {
+        font-family: 'Orbitron', sans-serif;
+        font-size: 18px;
+        color: var(--neon-cyan);
+        text-shadow: 0 0 10px rgba(0, 243, 255, 0.5);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .ai-card-body {
+        padding: 20px;
+        color: #a0a0a0;
+    }
+
+    .ai-info-item {
+        margin-bottom: 12px;
+        display: flex;
+        align-items: baseline;
+        font-size: 14px;
+    }
+
+    .ai-info-label {
+        width: 90px;
+        color: var(--neon-blue);
+        font-weight: 500;
+        text-transform: uppercase;
+        font-size: 12px;
+        letter-spacing: 1px;
+    }
+
+    .ai-info-value {
+        color: #fff;
+        font-family: 'Consolas', monospace;
+        flex: 1;
+    }
+
+    .ai-card-footer {
+        padding: 15px 20px;
+        border-top: 1px solid rgba(0, 243, 255, 0.1);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: rgba(0, 0, 0, 0.3);
+    }
+
+    /* Status Badge */
+    .status-badge {
+        font-family: 'Orbitron', sans-serif;
+        font-size: 10px;
+        padding: 4px 8px;
+        border: 1px solid;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .status-active {
+        color: #00ff00;
+        border-color: #00ff00;
+        box-shadow: 0 0 10px rgba(0, 255, 0, 0.2);
+        animation: pulse 2s infinite;
+    }
+
+    .status-inactive {
+        color: #ff3366;
+        border-color: #ff3366;
+        opacity: 0.7;
+    }
+
+    @keyframes pulse {
+        0% { opacity: 0.7; box-shadow: 0 0 5px rgba(0, 255, 0, 0.2); }
+        50% { opacity: 1; box-shadow: 0 0 15px rgba(0, 255, 0, 0.5); }
+        100% { opacity: 0.7; box-shadow: 0 0 5px rgba(0, 255, 0, 0.2); }
+    }
+
+    /* Modal Styling */
+    .layui-layer-molv .layui-layer-title {
+        background: #0a1520 !important;
+        color: var(--neon-cyan) !important;
+        border-bottom: 1px solid var(--neon-cyan) !important;
+        font-family: 'Orbitron', sans-serif !important;
+    }
+    
+    .layui-layer-page .layui-layer-content {
+        background: #0a1520 !important;
+        color: #fff;
+    }
+
+    .layui-input, .layui-textarea {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid #333;
+        color: var(--neon-cyan);
+        font-family: 'Consolas', monospace;
+    }
+
+    .layui-input:focus, .layui-textarea:focus {
+        border-color: var(--neon-cyan) !important;
+        box-shadow: 0 0 10px rgba(0, 243, 255, 0.2);
+    }
+
+    .layui-form-label {
+        color: var(--neon-blue);
+    }
+
+    /* Pagination */
+    .layui-laypage a, .layui-laypage span {
+        background: transparent !important;
+        color: var(--neon-cyan) !important;
+        border: 1px solid rgba(0, 243, 255, 0.3) !important;
+    }
+    
+    .layui-laypage .layui-laypage-curr .layui-laypage-em {
+        background: var(--neon-cyan) !important;
+    }
+    
+    .layui-laypage .layui-laypage-curr em {
+        color: #000 !important;
+    }
+
+    /* Chat Interface */
+    .chat-container {
+        height: 350px;
+        overflow-y: auto;
+        border: 1px solid rgba(0, 243, 255, 0.3);
+        background: rgba(0, 0, 0, 0.3);
+        padding: 15px;
+        margin-bottom: 15px;
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .chat-message {
+        max-width: 80%;
+        padding: 10px 15px;
+        border-radius: 10px;
+        font-size: 14px;
+        line-height: 1.5;
+        word-wrap: break-word;
+    }
+
+    .chat-message.user {
+        align-self: flex-end;
+        background: rgba(0, 243, 255, 0.1);
+        border: 1px solid var(--neon-cyan);
+        color: #fff;
+        border-bottom-right-radius: 0;
+    }
+
+    .chat-message.ai {
+        align-self: flex-start;
+        background: rgba(188, 19, 254, 0.1);
+        border: 1px solid var(--neon-purple);
+        color: #fff;
+        border-bottom-left-radius: 0;
+    }
+
+    .chat-input-area {
+        display: flex;
+        gap: 10px;
+    }
+
+</style>
+
+<div class="page-toolbar">
+    <button class="layui-btn btn-sci-fi" id="addModelBtn">
+        <i class="layui-icon layui-icon-add-1"></i> 接入新引擎
+    </button>
+</div>
+
+<div class="layui-row layui-col-space20" style="padding: 20px;">
+    {% for model in models %}
+    <div class="layui-col-md6">
+        <div class="ai-model-card">
+            <div class="ai-card-header">
+                <span class="ai-card-title">
+                    <i class="layui-icon layui-icon-engine" style="font-size: 20px;"></i> 
+                    {{ model.name }}
+                </span>
+                <span class="status-badge {{ 'status-active' if model.is_enabled else 'status-inactive' }}">
+                    {{ '系统在线' if model.is_enabled else '连接中断' }}
+                </span>
+            </div>
+            <div class="ai-card-body">
+                <div class="ai-info-item">
+                    <span class="ai-info-label">模型标识</span>
+                    <span class="ai-info-value">{{ model.model_name }}</span>
+                </div>
+                <div class="ai-info-item">
+                    <span class="ai-info-label">服务端点</span>
+                    <span class="ai-info-value">{{ model.api_url }}</span>
+                </div>
+                <div class="ai-info-item">
+                    <span class="ai-info-label">算力消耗</span>
+                    <span class="ai-info-value" style="color: #ffcc00; text-shadow: 0 0 5px rgba(255, 204, 0, 0.5);">{{ model.token_usage }}</span>
+                </div>
+                <div class="ai-info-item">
+                    <span class="ai-info-label">系统指令</span>
+                    <span class="ai-info-value text-truncate" style="max-height: 40px; overflow: hidden; opacity: 0.7;">{{ model.prompt or '默认配置' }}</span>
+                </div>
+            </div>
+            <div class="ai-card-footer">
+                <div class="layui-btn-group">
+                    <button class="layui-btn layui-btn-sm btn-sci-fi test-model-btn" 
+                        data-id="{{ model.id }}"
+                        data-api-url="{{ model.api_url }}"
+                        data-api-key="{{ model.api_key }}"
+                        data-model-name="{{ model.model_name }}"
+                        data-prompt="{{ model.prompt or '' }}">
+                        <i class="layui-icon layui-icon-dialogue"></i> 链路测试
+                    </button>
+                    <button class="layui-btn layui-btn-sm btn-sci-fi edit-model-btn" 
+                        data-id="{{ model.id }}"
+                        data-name="{{ model.name }}"
+                        data-api-url="{{ model.api_url }}"
+                        data-api-key="{{ model.api_key }}"
+                        data-model-name="{{ model.model_name }}"
+                        data-prompt="{{ model.prompt or '' }}">
+                        <i class="layui-icon layui-icon-edit"></i> 参数配置
+                    </button>
+                    <a href="{{ url_for('admin.ai_model_toggle', id=model.id) }}" class="layui-btn layui-btn-sm btn-sci-fi">
+                        <i class="layui-icon {{ 'layui-icon-pause' if model.is_enabled else 'layui-icon-play' }}"></i> 
+                        {{ '挂起' if model.is_enabled else '启动' }}
+                    </a>
+                </div>
+                <a href="{{ url_for('admin.ai_model_delete', id=model.id) }}" class="layui-btn layui-btn-sm btn-sci-fi-danger" onclick="return confirm('警告：确认删除该AI引擎协议？')">
+                    <i class="layui-icon layui-icon-delete"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- 分页 -->
+<div class="pagination-container" style="text-align: center; margin-top: 20px;">
+    <div id="pagination"></div>
+</div>
+
+<!-- Add/Edit Modal Template -->
+<div id="modelFormModal" style="display: none; padding: 20px;">
+    <form class="layui-form" id="modelForm" action="{{ url_for('admin.ai_model_add') }}" method="POST">
+        <div class="layui-form-item">
+            <label class="layui-form-label">引擎标识</label>
+            <div class="layui-input-block">
+                <input type="text" name="name" required lay-verify="required" placeholder="例如：SiliconFlow Qwen" autocomplete="off" class="layui-input">
+            </div>
+        </div>
+        <div class="layui-form-item">
+            <label class="layui-form-label">接口地址</label>
+            <div class="layui-input-block">
+                <input type="text" name="api_url" required lay-verify="required" placeholder="例如：https://api.siliconflow.cn/v1/" autocomplete="off" class="layui-input">
+            </div>
+        </div>
+        <div class="layui-form-item">
+            <label class="layui-form-label">访问密钥</label>
+            <div class="layui-input-block">
+                <input type="password" name="api_key" required lay-verify="required" placeholder="sk-..." autocomplete="off" class="layui-input">
+            </div>
+        </div>
+        <div class="layui-form-item">
+            <label class="layui-form-label">模型标签</label>
+            <div class="layui-input-block">
+                <input type="text" name="model_name" required lay-verify="required" placeholder="例如：Qwen/Qwen2.5-7B-Instruct" autocomplete="off" class="layui-input">
+            </div>
+        </div>
+        <div class="layui-form-item">
+            <label class="layui-form-label">系统提示词</label>
+            <div class="layui-input-block">
+                <textarea name="prompt" placeholder="系统级协议（可选）" class="layui-textarea"></textarea>
+            </div>
+        </div>
+        <div class="layui-form-item">
+            <div class="layui-input-block">
+                <button class="layui-btn btn-sci-fi" lay-submit style="width: 100%;">执行初始化</button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Test Modal -->
+<div id="testModal" style="display: none; padding: 20px;">
+    <div id="chatHistory" class="chat-container">
+        <div style="text-align: center; color: #666; font-size: 12px; margin-top: 10px;">
+            -- 链路已连接，开始对话测试 --
+        </div>
+    </div>
+    
+    <div class="chat-input-area">
+        <textarea id="testInput" class="layui-textarea" placeholder="在此输入测试内容..." rows="2" style="min-height: 50px; resize: none;"></textarea>
+        <button class="layui-btn btn-sci-fi" onclick="runTest()" style="height: auto; width: 100px;">
+            <i class="layui-icon layui-icon-release"></i> 发送
+        </button>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    layui.use(['layer', 'laypage', 'form'], function(){
+        var layer = layui.layer;
+        var laypage = layui.laypage;
+        var form = layui.form;
+        var $ = layui.$;
+
+        // 分页
+        laypage.render({
+            elem: 'pagination',
+            count: Number('{{ pagination.total }}'),
+            limit: Number('{{ pagination.per_page }}'),
+            curr: Number('{{ pagination.page }}'),
+            layout: ['prev', 'page', 'next', 'count'],
+            jump: function(obj, first){
+                if(!first){
+                    window.location.href = "{{ url_for('admin.ai_models') }}?page=" + obj.curr;
+                }
+            }
+        });
+
+        // Add Model
+        $('#addModelBtn').click(function(){
+            $('#modelForm')[0].reset();
+            $('#modelForm').attr('action', "{{ url_for('admin.ai_model_add') }}");
+            layer.open({
+                type: 1,
+                title: '初始化新引擎',
+                area: ['600px', '550px'],
+                content: $('#modelFormModal'),
+                shade: 0.8,
+                skin: 'layui-layer-molv'
+            });
+        });
+        
+        // Edit Model (Event Delegation)
+        $(document).on('click', '.edit-model-btn', function() {
+            var data = $(this).data();
+            editModel(data.id, data.name, data.apiUrl, data.apiKey, data.modelName, data.prompt);
+        });
+
+        // Test Model (Event Delegation)
+        $(document).on('click', '.test-model-btn', function() {
+            var data = $(this).data();
+            testModel(data.id, data.apiUrl, data.apiKey, data.modelName, data.prompt);
+        });
+    });
+
+    var currentTestConfig = {};
+    var chatHistory = [];
+
+    function editModel(id, name, api_url, api_key, model_name, prompt) {
+        var $ = layui.$;
+        $('#modelForm')[0].reset();
+        $('#modelForm').attr('action', "/admin/ai-models/edit/" + id);
+        
+        $('input[name="name"]').val(name);
+        $('input[name="api_url"]').val(api_url);
+        $('input[name="api_key"]').val(api_key);
+        $('input[name="model_name"]').val(model_name);
+        var promptVal = (prompt === 'None' || prompt === undefined) ? '' : prompt;
+        $('textarea[name="prompt"]').val(promptVal);
+        
+        layui.layer.open({
+            type: 1,
+            title: '配置引擎参数',
+            area: ['600px', '550px'],
+            content: $('#modelFormModal'),
+            shade: 0.8,
+            skin: 'layui-layer-molv'
+        });
+    }
+
+    function testModel(id, api_url, api_key, model_name, prompt) {
+        currentTestConfig = {
+            api_url: api_url,
+            api_key: api_key,
+            model_name: model_name,
+            prompt: (prompt === 'None' || prompt === undefined) ? '' : prompt
+        };
+        
+        // Reset Chat
+        chatHistory = [];
+        var $ = layui.$;
+        $('#chatHistory').html('<div style="text-align: center; color: #666; font-size: 12px; margin-top: 10px;">-- 链路已连接，开始对话测试 --</div>');
+        $('#testInput').val('');
+        
+        layui.layer.open({
+            type: 1,
+            title: '交互式链路测试 - ' + model_name,
+            area: ['600px', '550px'],
+            content: layui.$('#testModal'),
+            shade: 0.8,
+            skin: 'layui-layer-molv',
+            success: function() {
+                $('#testInput').focus();
+            }
+        });
+    }
+
+    function appendMessage(role, content) {
+        var $ = layui.$;
+        var className = role === 'user' ? 'user' : 'ai';
+        var html = '<div class="chat-message ' + className + '">' + 
+                   (role === 'ai' ? '<i class="layui-icon layui-icon-engine" style="margin-right: 5px;"></i>' : '') +
+                   content.replace(/\n/g, '<br>') + 
+                   '</div>';
+        $('#chatHistory').append(html);
+        // Scroll to bottom
+        var chatDiv = document.getElementById('chatHistory');
+        chatDiv.scrollTop = chatDiv.scrollHeight;
+    }
+
+    function runTest() {
+        var $ = layui.$;
+        var message = $('#testInput').val().trim();
+        if (!message) return;
+
+        // Add User Message
+        appendMessage('user', message);
+        chatHistory.push({role: 'user', content: message});
+        $('#testInput').val('');
+        
+        // Show loading
+        var loadingId = layer.load(2);
+        
+        $.ajax({
+            url: "{{ url_for('admin.ai_model_test') }}",
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                ...currentTestConfig,
+                history: chatHistory
+            }),
+            success: function(res) {
+                layer.close(loadingId);
+                if (res.success) {
+                    appendMessage('ai', res.reply);
+                    chatHistory.push({role: 'assistant', content: res.reply});
+                } else {
+                    layer.msg('错误: ' + res.error, {icon: 2});
+                    chatHistory.pop(); // Remove user message if failed
+                }
+            },
+            error: function(err) {
+                layer.close(loadingId);
+                layer.msg('网络错误', {icon: 2});
+                chatHistory.pop();
+            }
+        });
+    }
+</script>
+{% endblock %}
