@@ -644,3 +644,48 @@ input:checked + .slider:before {
     height: 60px;
     outline: none;
 }
+
+/* Weather Card */
+.weather-card {
+    background: linear-gradient(135deg, #6e8efb, #a777e3);
+    color: white;
+    padding: 15px;
+    border-radius: 12px;
+    min-width: 200px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.weather-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.9em;
+    opacity: 0.9;
+    margin-bottom: 10px;
+}
+
+.weather-main {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.weather-icon {
+    font-size: 2.5em;
+}
+
+.weather-temp {
+    font-size: 2em;
+    font-weight: bold;
+}
+
+.weather-details {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.9em;
+    border-top: 1px solid rgba(255,255,255,0.3);
+    padding-top: 8px;
+}
+
+/* Scrollbar */

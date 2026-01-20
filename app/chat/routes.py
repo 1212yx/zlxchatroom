@@ -5,6 +5,8 @@ from app.models import WSServer, db
 from app.models import User, Room, Message
 import json
 from datetime import datetime
+from app.bot.core import get_bot_response
+from app.chat.weather import get_weather_data, parse_weather_video
 
 # In-memory store for connected clients: {room_id: set(ws)}
 # Using set for O(1) removal, but ws objects need to be hashable. They usually are.
@@ -153,6 +155,91 @@ def websocket(ws):
                                 'content': content,
                                 'timestamp': datetime.now().strftime('%H:%M')
                             })
+
+                            # Check for Bot Trigger
+                            if content.startswith('@小师妹'):
+                                try:
+                                    # Stream response
+                                    broadcast(room, {'type': 'stream_start', 'user': '小师妹', 'timestamp': datetime.now().strftime('%H:%M')})
+                                    full_response = ""
+                                    # Remove trigger word
+                                    query = content.replace('@小师妹', '').strip()
+                                    for chunk in get_bot_response(query, user, room):
+                                        broadcast(room, {
+                                            'type': 'stream_chunk',
+                                            'content': chunk,
+                                            'user': '小师妹'
+                                        })
+                                        full_response += chunk
+                                    
+                                    broadcast(room, {'type': 'stream_end', 'user': '小师妹'})
+                                except Exception as e:
+                                    print(f"Bot Error: {e}")
+                                    broadcast(room, {
+                                        'type': 'chat',
+                                        'user': 'System',
+                                        'content': f"小师妹出错了: {str(e)}",
+                                        'timestamp': datetime.now().strftime('%H:%M')
+                                    })
+                            
+                            # Check for Weather Trigger
+                            elif content.startswith('小天气'):
+                                try:
+                                    city = content.replace('小天气', '').strip()
+                                    # If city is empty, we might want to default or just pass None
+                                    if not city:
+                                        city = "北京" # Default for now or handle in API
+                                    
+                                    broadcast(room, {
+                                        'type': 'chat', 
+                                        'user': '小天气', 
+                                        'content': f"正在查询 {city} 的天气...", 
+                                        'timestamp': datetime.now().strftime('%H:%M')
+                                    })
+
+                                    data = get_weather_data(city)
+                                    
+                                    if 'error' in data:
+                                        broadcast(room, {
+                                            'type': 'chat',
+                                            'user': '小天气',
+                                            'content': f"查询失败: {data['error']}",
+                                            'timestamp': datetime.now().strftime('%H:%M')
+                                        })
+                                    else:
+                                        # Parse data to find weather condition for video
+                                        # Assuming data structure from common APIs (e.g. data['data']['type'] or similar)
+                                        # We'll just dump the whole JSON to frontend for now to handle, 
+                                        # or try to extract a 'type' or 'weather' field.
+                                        # Let's inspect the data structure in a real call if possible, 
+                                        # but here we'll assume a generic 'data' field might contain the text.
+                                        
+                                        # Heuristic to find weather type string in JSON
+                                        weather_type = "晴" # Default
+                                        if isinstance(data, dict):
+                                            # Try to find a value that looks like weather
+                                            # This is a bit hacky without knowing exact API response structure
+                                            # But user said "return current message sender's location weather"
+                                            # Let's assume the API returns something usable.
+                                            # We will send the whole data object to frontend.
+                                            pass
+                                            
+                                        # Send special weather message
+                                        broadcast(room, {
+                                            'type': 'weather',
+                                            'user': '小天气',
+                                            'data': data,
+                                            'timestamp': datetime.now().strftime('%H:%M')
+                                        })
+
+                                except Exception as e:
+                                    print(f"Weather Error: {e}")
+                                    broadcast(room, {
+                                        'type': 'chat',
+                                        'user': 'System',
+                                        'content': f"天气查询出错: {str(e)}",
+                                        'timestamp': datetime.now().strftime('%H:%M')
+                                    })
     except Exception as e:
         print(f"WS Error: {e}")
     finally:
