@@ -3,15 +3,31 @@ from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
 
+# 好友关联表
+friendships = db.Table('friendships',
+    db.Column('user_id', db.Integer, db.ForeignKey('users.id'), primary_key=True),
+    db.Column('friend_id', db.Integer, db.ForeignKey('users.id'), primary_key=True)
+)
+
 class User(UserMixin, db.Model):
     __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(64), unique=True, index=True)
     nickname = db.Column(db.String(64))  # Added nickname field
+    avatar = db.Column(db.String(256)) # Avatar URL or filename
     email = db.Column(db.String(120), unique=True, index=True)
     password_hash = db.Column(db.String(128))
     is_banned = db.Column(db.Boolean, default=False)  # 封禁状态
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # Friends relationship
+    friends = db.relationship('User', 
+        secondary=friendships,
+        primaryjoin=(friendships.c.user_id == id),
+        secondaryjoin=(friendships.c.friend_id == id),
+        backref=db.backref('friend_of', lazy='dynamic'), 
+        lazy='dynamic'
+    )
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -35,6 +51,7 @@ class Room(db.Model):
     description = db.Column(db.String(256))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     is_banned = db.Column(db.Boolean, default=False)
+    type = db.Column(db.String(20), default='group') # private, group
     
     # 创建人
     creator_id = db.Column(db.Integer, db.ForeignKey('users.id'))
@@ -102,6 +119,20 @@ class AIModel(db.Model):
     def __repr__(self):
         return f'<AIModel {self.name}>'
 
+class Sticker(db.Model):
+    __tablename__ = 'stickers'
+    id = db.Column(db.Integer, primary_key=True)
+    url = db.Column(db.String(256), nullable=False)
+    filename = db.Column(db.String(128), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationship
+    user = db.relationship('User', backref=db.backref('stickers', lazy='dynamic'))
+
+    def __repr__(self):
+        return f'<Sticker {self.filename}>'
+
 class ThirdPartyApi(db.Model):
     __tablename__ = 'third_party_apis'
     id = db.Column(db.Integer, primary_key=True)
@@ -114,3 +145,27 @@ class ThirdPartyApi(db.Model):
 
     def __repr__(self):
         return f'<ThirdPartyApi {self.name}>'
+
+class FriendRequest(db.Model):
+    __tablename__ = 'friend_requests'
+    id = db.Column(db.Integer, primary_key=True)
+    sender_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    receiver_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    status = db.Column(db.String(20), default='pending') # pending, accepted, rejected
+    hello_message = db.Column(db.String(256)) # 验证信息
+    remark = db.Column(db.String(64)) # 备注
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    sender = db.relationship('User', foreign_keys=[sender_id], backref='sent_friend_requests')
+    receiver = db.relationship('User', foreign_keys=[receiver_id], backref='received_friend_requests')
+
+class GroupRequest(db.Model):
+    __tablename__ = 'group_requests'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    group_id = db.Column(db.Integer, db.ForeignKey('rooms.id'), nullable=False)
+    status = db.Column(db.String(20), default='pending') # pending, accepted, rejected
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    user = db.relationship('User', backref='group_requests')
+    group = db.relationship('Room', backref='join_requests')
