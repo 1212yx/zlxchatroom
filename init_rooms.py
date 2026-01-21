@@ -1,11 +1,27 @@
 
 from app import create_app, db
-from app.models import Room, User
+from app.models import Room, User, WSServer
 import random
 
 app = create_app()
 
 with app.app_context():
+    # 初始化服务器
+    print("Initializing servers...")
+    if WSServer.query.count() == 0:
+        servers = [
+            {'name': '智联星队主服', 'address': 'ws://127.0.0.1:8090/chat/ws', 'description': '官方推荐服务器，稳定快速'},
+            {'name': '技术交流服', 'address': 'ws://127.0.0.1:8090/chat/ws', 'description': '开发者技术交流专用'},
+            {'name': '测试服务器', 'address': 'ws://127.0.0.1:8090/chat/ws', 'description': '功能测试服务器，数据定期清理'}
+        ]
+        for s in servers:
+            server = WSServer(name=s['name'], address=s['address'], description=s['description'])
+            db.session.add(server)
+        db.session.commit()
+        print("Default servers created.")
+    else:
+        print("Servers already exist.")
+
     # 检查是否已有房间
     # if Room.query.count() == 0:
     print("Initializing rooms...")

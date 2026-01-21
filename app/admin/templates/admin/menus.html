@@ -1,0 +1,219 @@
+{% extends "admin/layout.html" %}
+
+{% block breadcrumb %}系统管理 / 菜单管理{% endblock %}
+
+{% block content %}
+<div class="layui-card page-toolbar">
+    <div class="layui-row">
+        <div class="layui-col-md12">
+            <button class="layui-btn layui-btn-normal" id="btn-add">
+                <i class="layui-icon layui-icon-add-1"></i> 新增菜单
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="layui-card">
+    <div class="layui-card-body">
+        <table class="layui-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>菜单名称</th>
+                    <th>图标</th>
+                    <th>链接/路由</th>
+                    <th>排序</th>
+                    <th>可见性</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for menu in menus %}
+                <tr style="background-color: #f2f2f2;">
+                    <td>{{ menu.id }}</td>
+                    <td><i class="layui-icon {{ menu.icon }}"></i> {{ menu.name }}</td>
+                    <td>{{ menu.icon }}</td>
+                    <td>{{ menu.url or '' }}</td>
+                    <td>{{ menu.order }}</td>
+                    <td>
+                        {% if menu.is_visible %}
+                        <span class="layui-badge layui-bg-green">显示</span>
+                        {% else %}
+                        <span class="layui-badge layui-bg-gray">隐藏</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <button class="layui-btn layui-btn-xs layui-btn-normal btn-edit" data-id="{{ menu.id }}">编辑</button>
+                        <button class="layui-btn layui-btn-xs layui-btn-danger btn-delete" data-id="{{ menu.id }}">删除</button>
+                    </td>
+                </tr>
+                    {% for child in menu.children %}
+                    <tr>
+                        <td>{{ child.id }}</td>
+                        <td style="padding-left: 40px;">├─ <i class="layui-icon {{ child.icon }}"></i> {{ child.name }}</td>
+                        <td>{{ child.icon }}</td>
+                        <td>{{ child.url or '' }}</td>
+                        <td>{{ child.order }}</td>
+                        <td>
+                            {% if child.is_visible %}
+                            <span class="layui-badge layui-bg-green">显示</span>
+                            {% else %}
+                            <span class="layui-badge layui-bg-gray">隐藏</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <button class="layui-btn layui-btn-xs layui-btn-normal btn-edit" data-id="{{ child.id }}">编辑</button>
+                            <button class="layui-btn layui-btn-xs layui-btn-danger btn-delete" data-id="{{ child.id }}">删除</button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Form Modal -->
+<div id="menuForm" style="display: none; padding: 20px;">
+    <form class="layui-form" lay-filter="menuForm">
+        <div class="layui-form-item">
+            <label class="layui-form-label">上级菜单</label>
+            <div class="layui-input-block">
+                <select name="parent_id">
+                    <option value="">顶级菜单</option>
+                    {% for menu in menus %}
+                    <option value="{{ menu.id }}">{{ menu.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <div class="layui-form-item">
+            <label class="layui-form-label">菜单名称</label>
+            <div class="layui-input-block">
+                <input type="text" name="name" required lay-verify="required" class="layui-input">
+            </div>
+        </div>
+        <div class="layui-form-item">
+            <label class="layui-form-label">图标Class</label>
+            <div class="layui-input-block">
+                <input type="text" name="icon" class="layui-input" placeholder="layui-icon-home">
+            </div>
+        </div>
+        <div class="layui-form-item">
+            <label class="layui-form-label">链接/路由</label>
+            <div class="layui-input-block">
+                <input type="text" name="url" class="layui-input" placeholder="admin.index">
+            </div>
+        </div>
+        <div class="layui-form-item">
+            <label class="layui-form-label">排序</label>
+            <div class="layui-input-block">
+                <input type="number" name="order" value="0" class="layui-input">
+            </div>
+        </div>
+        <div class="layui-form-item">
+            <label class="layui-form-label">可见性</label>
+            <div class="layui-input-block">
+                <input type="checkbox" name="is_visible" lay-skin="switch" lay-text="显示|隐藏" checked>
+            </div>
+        </div>
+        <div class="layui-form-item" style="text-align: center;">
+            <button class="layui-btn" lay-submit lay-filter="submitMenu">提交</button>
+        </div>
+    </form>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+layui.use(['layer', 'form'], function(){
+    var layer = layui.layer;
+    var form = layui.form;
+    var $ = layui.$;
+    
+    // Add
+    $('#btn-add').click(function(){
+        // Reset form
+        $('form[lay-filter="menuForm"]')[0].reset();
+        $('select[name="parent_id"]').val('');
+        form.render();
+        
+        layer.open({
+            type: 1,
+            title: '新增菜单',
+            area: ['500px', '500px'],
+            content: $('#menuForm'),
+            success: function(){
+                form.on('submit(submitMenu)', function(data){
+                    $.post('/admin/menus/add', data.field, function(res){
+                        if(res.status === 'success'){
+                            layer.msg(res.message);
+                            setTimeout(function(){ location.reload(); }, 1000);
+                        } else {
+                            layer.msg(res.message, {icon: 2});
+                        }
+                    });
+                    return false;
+                });
+            }
+        });
+    });
+    
+    // Edit
+    $('.btn-edit').click(function(){
+        var id = $(this).data('id');
+        $.get('/admin/menus/' + id, function(res){
+            $('input[name="name"]').val(res.name);
+            $('input[name="icon"]').val(res.icon);
+            $('input[name="url"]').val(res.url);
+            $('input[name="order"]').val(res.order);
+            $('select[name="parent_id"]').val(res.parent_id || '');
+            
+            // Checkbox for visible
+            if(res.is_visible){
+                $('input[name="is_visible"]').prop('checked', true);
+            } else {
+                $('input[name="is_visible"]').prop('checked', false);
+            }
+            
+            form.render();
+            
+            layer.open({
+                type: 1,
+                title: '编辑菜单',
+                area: ['500px', '500px'],
+                content: $('#menuForm'),
+                success: function(){
+                    form.on('submit(submitMenu)', function(data){
+                        $.post('/admin/menus/' + id + '/edit', data.field, function(res){
+                            if(res.status === 'success'){
+                                layer.msg(res.message);
+                                setTimeout(function(){ location.reload(); }, 1000);
+                            }
+                        });
+                        return false;
+                    });
+                }
+            });
+        });
+    });
+    
+    // Delete
+    $('.btn-delete').click(function(){
+        var id = $(this).data('id');
+        layer.confirm('确定删除该菜单吗？如有子菜单请先删除子菜单。', {icon: 3, title:'提示'}, function(index){
+            $.post('/admin/menus/' + id + '/delete', function(res){
+                if(res.status === 'success'){
+                    layer.msg(res.message);
+                    setTimeout(function(){ location.reload(); }, 1000);
+                } else {
+                    layer.msg(res.message, {icon: 2});
+                }
+            });
+            layer.close(index);
+        });
+    });
+});
+</script>
+{% endblock %}

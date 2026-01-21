@@ -1,0 +1,191 @@
+{% extends "admin/layout.html" %}
+
+{% block breadcrumb %}采集管理 / ws服务器管理{% endblock %}
+
+{% block content %}
+<div class="layui-card page-toolbar">
+    <div class="layui-row">
+        <div class="layui-col-md12">
+            <button class="layui-btn layui-btn-normal" id="btn-add">
+                <i class="layui-icon layui-icon-add-1"></i> 新增服务器
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="layui-row layui-col-space15">
+    {% for server in servers %}
+    <div class="layui-col-md3 layui-col-sm6">
+        <div class="layui-card">
+            <div class="layui-card-header">
+                {{ server.name }}
+                {% if server.is_active %}
+                <span class="layui-badge layui-bg-green" style="float: right; margin-top: 10px;">启用</span>
+                {% else %}
+                <span class="layui-badge layui-bg-gray" style="float: right; margin-top: 10px;">禁用</span>
+                {% endif %}
+            </div>
+            <div class="layui-card-body">
+                <p style="margin-bottom: 5px;">地址：<span class="layui-badge layui-bg-blue">{{ server.address }}</span></p>
+                <p style="margin-bottom: 10px; color: #999; height: 40px; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical;">描述：{{ server.description or '暂无描述' }}</p>
+                <p style="margin-bottom: 10px; color: #999;">创建时间：{{ server.created_at.strftime('%Y-%m-%d') }}</p>
+                <hr>
+                <div style="text-align: center; margin-top: 15px;">
+                    <button class="layui-btn layui-btn-sm layui-btn-normal btn-edit" data-id="{{ server.id }}" title="编辑" style="margin: 0 4px;">
+                        <i class="layui-icon layui-icon-edit"></i>
+                    </button>
+                    <button class="layui-btn layui-btn-sm layui-btn-warm btn-toggle" data-id="{{ server.id }}" title="{{ '禁用' if server.is_active else '启用' }}" style="margin: 0 4px;">
+                        <i class="layui-icon {{ 'layui-icon-close-circle' if server.is_active else 'layui-icon-ok-circle' }}"></i>
+                    </button>
+                    <button class="layui-btn layui-btn-sm layui-btn-danger btn-delete" data-id="{{ server.id }}" title="删除" style="margin: 0 4px;">
+                        <i class="layui-icon layui-icon-delete"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- 分页 -->
+<div id="pagination" style="text-align: center; margin-top: 20px;" data-total="{{ pagination.total }}" data-page="{{ pagination.page }}"></div>
+
+<!-- 新增/编辑表单 -->
+<div id="serverForm" style="display: none; padding: 20px;">
+    <form class="layui-form" lay-filter="serverForm">
+        <div class="layui-form-item">
+            <label class="layui-form-label">名称</label>
+            <div class="layui-input-block">
+                <input type="text" name="name" required lay-verify="required" placeholder="请输入服务器名称" autocomplete="off" class="layui-input">
+            </div>
+        </div>
+        <div class="layui-form-item">
+            <label class="layui-form-label">地址</label>
+            <div class="layui-input-block">
+                <input type="text" name="address" required lay-verify="required" placeholder="格式: ws://ip:port 或 ip:port" autocomplete="off" class="layui-input">
+            </div>
+        </div>
+        <div class="layui-form-item">
+            <label class="layui-form-label">描述</label>
+            <div class="layui-input-block">
+                <textarea name="description" placeholder="请输入描述" class="layui-textarea"></textarea>
+            </div>
+        </div>
+        <div class="layui-form-item" style="text-align: center;">
+            <button class="layui-btn" lay-submit lay-filter="submitServer">提交</button>
+        </div>
+    </form>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+layui.use(['laypage', 'layer', 'form'], function(){
+    var laypage = layui.laypage;
+    var layer = layui.layer;
+    var form = layui.form;
+    var $ = layui.$;
+    
+    // 获取分页数据
+    var total = parseInt($('#pagination').data('total'));
+    var curr = parseInt($('#pagination').data('page'));
+
+    // 分页
+    laypage.render({
+        elem: 'pagination',
+        count: total,
+        limit: 12,
+        curr: curr,
+        layout: ['count', 'prev', 'page', 'next', 'skip'],
+        jump: function(obj, first){
+            if(!first){
+                location.href = "{{ url_for('admin.servers') }}?page=" + obj.curr;
+            }
+        }
+    });
+    
+    // 新增
+    $('#btn-add').click(function(){
+        // 清空表单
+        $('input[name="name"]').val('');
+        $('input[name="address"]').val('');
+        $('textarea[name="description"]').val('');
+        
+        layer.open({
+            type: 1,
+            title: '新增服务器',
+            area: ['500px', '400px'],
+            content: $('#serverForm'),
+            success: function(){
+                // 绑定提交事件
+                form.on('submit(submitServer)', function(data){
+                    $.post('/admin/servers/add', data.field, function(res){
+                        if(res.status === 'success'){
+                            layer.msg(res.message);
+                            setTimeout(function(){ location.reload(); }, 1000);
+                        } else {
+                            layer.msg(res.message, {icon: 2});
+                        }
+                    });
+                    return false;
+                });
+            }
+        });
+    });
+
+    // 编辑
+    $(document).on('click', '.btn-edit', function(){
+        var id = $(this).data('id');
+        $.get('/admin/servers/' + id, function(res){
+            $('input[name="name"]').val(res.name);
+            $('input[name="address"]').val(res.address);
+            $('textarea[name="description"]').val(res.description);
+            
+            layer.open({
+                type: 1,
+                title: '编辑服务器',
+                area: ['500px', '400px'],
+                content: $('#serverForm'),
+                success: function(){
+                    form.on('submit(submitServer)', function(data){
+                        $.post('/admin/servers/' + id + '/edit', data.field, function(res){
+                            if(res.status === 'success'){
+                                layer.msg(res.message);
+                                setTimeout(function(){ location.reload(); }, 1000);
+                            }
+                        });
+                        return false;
+                    });
+                }
+            });
+        });
+    });
+
+    // 切换状态
+    $(document).on('click', '.btn-toggle', function(){
+        var id = $(this).data('id');
+        $.post('/admin/servers/' + id + '/toggle', function(res){
+            if(res.status === 'success'){
+                layer.msg(res.message);
+                setTimeout(function(){ location.reload(); }, 1000);
+            }
+        });
+    });
+
+    // 删除
+    $(document).on('click', '.btn-delete', function(){
+        var id = $(this).data('id');
+        layer.confirm('确定删除该服务器配置吗？', {icon: 3, title:'提示'}, function(index){
+            $.post('/admin/servers/' + id + '/delete', function(res){
+                if(res.status === 'success'){
+                    layer.msg(res.message);
+                    setTimeout(function(){ location.reload(); }, 1000);
+                }
+            });
+            layer.close(index);
+        });
+    });
+});
+</script>
+{% endblock %}

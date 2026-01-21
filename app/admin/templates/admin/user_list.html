@@ -106,7 +106,7 @@
             layout: ['limit', 'prev', 'page', 'next', 'skip'], // 自定义布局
             jump: function(obj, first){
                 if(!first){
-                    window.location.href = "{{ url_for('admin.user_list') }}?page=" + obj.curr;
+                    window.location.href = "{{ url_for('admin.users') }}?page=" + obj.curr;
                 }
             }
         });
@@ -127,7 +127,7 @@
 
         // 封禁/解封用户
         window.toggleBan = function(userId, btn) {
-            $.post('/admin/users/' + userId + '/toggle_ban', function(res) {
+            $.post("{{ url_for('admin.users') }}/" + userId + '/ban', function(res) {
                 if(res.status === 'success') {
                     layer.msg(res.message, {icon: 1});
                     setTimeout(function(){ location.reload(); }, 1000);
@@ -140,7 +140,7 @@
         // 删除用户
         window.deleteUser = function(userId) {
             layer.confirm('确定要删除该用户吗？此操作不可恢复。', {icon: 3, title:'提示'}, function(index){
-                $.post('/admin/users/' + userId + '/delete', function(res) {
+                $.post("{{ url_for('admin.users') }}/" + userId + '/delete', function(res) {
                     if(res.status === 'success') {
                         layer.msg(res.message, {icon: 1});
                         setTimeout(function(){ location.reload(); }, 1000);

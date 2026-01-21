@@ -1,0 +1,200 @@
+{% extends "admin/layout.html" %}
+
+{% block breadcrumb %}系统管理 / 管理员管理{% endblock %}
+
+{% block content %}
+<div class="layui-card page-toolbar">
+    <div class="layui-row">
+        <div class="layui-col-md12">
+            <button class="layui-btn layui-btn-normal" id="btn-add">
+                <i class="layui-icon layui-icon-add-1"></i> 新增管理员
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="layui-card">
+    <div class="layui-card-body">
+        <table class="layui-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>用户名</th>
+                    <th>昵称</th>
+                    <th>超级管理员</th>
+                    <th>角色</th>
+                    <th>创建时间</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for admin in admins %}
+                <tr>
+                    <td>{{ admin.id }}</td>
+                    <td>{{ admin.username }}</td>
+                    <td>{{ admin.nickname or '' }}</td>
+                    <td>
+                        {% if admin.is_super %}
+                        <span class="layui-badge layui-bg-red">是</span>
+                        {% else %}
+                        <span class="layui-badge layui-bg-gray">否</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% for role in admin.roles %}
+                        <span class="layui-badge layui-bg-blue">{{ role.name }}</span>
+                        {% endfor %}
+                    </td>
+                    <td>{{ admin.created_at.strftime('%Y-%m-%d') if admin.created_at else '' }}</td>
+                    <td>
+                        <button class="layui-btn layui-btn-xs layui-btn-normal btn-edit" data-id="{{ admin.id }}">编辑/角色</button>
+                        {% if admin.username != 'admin' %}
+                        <button class="layui-btn layui-btn-xs layui-btn-danger btn-delete" data-id="{{ admin.id }}">删除</button>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Form Modal -->
+<div id="adminForm" style="display: none; padding: 20px;">
+    <form class="layui-form" lay-filter="adminForm">
+        <div class="layui-form-item">
+            <label class="layui-form-label">用户名</label>
+            <div class="layui-input-block">
+                <input type="text" name="username" required lay-verify="required" class="layui-input" placeholder="登录账号">
+            </div>
+        </div>
+        <div class="layui-form-item">
+            <label class="layui-form-label">昵称</label>
+            <div class="layui-input-block">
+                <input type="text" name="nickname" class="layui-input" placeholder="显示名称">
+            </div>
+        </div>
+        <div class="layui-form-item">
+            <label class="layui-form-label">密码</label>
+            <div class="layui-input-block">
+                <input type="password" name="password" class="layui-input" placeholder="不修改请留空">
+            </div>
+        </div>
+        
+        <div class="layui-form-item">
+            <label class="layui-form-label">角色分配</label>
+            <div class="layui-input-block">
+                {% for role in roles %}
+                <input type="checkbox" name="role_ids[]" value="{{ role.id }}" title="{{ role.name }}" lay-skin="primary">
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="layui-form-item" style="text-align: center;">
+            <button class="layui-btn" lay-submit lay-filter="submitAdmin">提交</button>
+        </div>
+    </form>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+layui.use(['layer', 'form'], function(){
+    var layer = layui.layer;
+    var form = layui.form;
+    var $ = layui.$;
+    
+    // Add
+    $('#btn-add').click(function(){
+        // Reset form
+        $('form[lay-filter="adminForm"]')[0].reset();
+        $('input[name="username"]').prop('disabled', false);
+        $('input[name="role_ids[]"]').prop('checked', false);
+        form.render();
+        
+        layer.open({
+            type: 1,
+            title: '新增管理员',
+            area: ['500px', '500px'],
+            content: $('#adminForm'),
+            success: function(){
+                form.on('submit(submitAdmin)', function(data){
+                    // Handle password required for add
+                    if(!data.field.password){
+                        layer.msg('新增时密码不能为空', {icon: 2});
+                        return false;
+                    }
+                    
+                    $.post('/admin/admin-users/add', data.field, function(res){
+                        if(res.status === 'success'){
+                            layer.msg(res.message);
+                            setTimeout(function(){ location.reload(); }, 1000);
+                        } else {
+                            layer.msg(res.message, {icon: 2});
+                        }
+                    });
+                    return false;
+                });
+            }
+        });
+    });
+    
+    // Edit
+    $('.btn-edit').click(function(){
+        var id = $(this).data('id');
+        $.get('/admin/admin-users/' + id, function(res){
+            $('input[name="username"]').val(res.username).prop('disabled', true);
+            $('input[name="nickname"]').val(res.nickname);
+            $('input[name="password"]').val(''); // Clear password
+            
+            // Reset roles
+            $('input[name="role_ids[]"]').prop('checked', false);
+            
+            // Check assigned roles
+            if(res.role_ids){
+                res.role_ids.forEach(function(rid){
+                    $('input[value="' + rid + '"]').prop('checked', true);
+                });
+            }
+            
+            form.render();
+            
+            layer.open({
+                type: 1,
+                title: '编辑管理员',
+                area: ['500px', '500px'],
+                content: $('#adminForm'),
+                success: function(){
+                    form.on('submit(submitAdmin)', function(data){
+                        $.post('/admin/admin-users/' + id + '/edit', data.field, function(res){
+                            if(res.status === 'success'){
+                                layer.msg(res.message);
+                                setTimeout(function(){ location.reload(); }, 1000);
+                            }
+                        });
+                        return false;
+                    });
+                }
+            });
+        });
+    });
+    
+    // Delete
+    $('.btn-delete').click(function(){
+        var id = $(this).data('id');
+        layer.confirm('确定删除该管理员吗？', {icon: 3, title:'提示'}, function(index){
+            $.post('/admin/admin-users/' + id + '/delete', function(res){
+                if(res.status === 'success'){
+                    layer.msg(res.message);
+                    setTimeout(function(){ location.reload(); }, 1000);
+                } else {
+                    layer.msg(res.message, {icon: 2});
+                }
+            });
+            layer.close(index);
+        });
+    });
+});
+</script>
+{% endblock %}

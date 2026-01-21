@@ -1,0 +1,212 @@
+{% extends "admin/layout.html" %}
+
+{% block breadcrumb %}系统管理 / 角色管理{% endblock %}
+
+{% block content %}
+<div class="layui-card page-toolbar">
+    <div class="layui-row">
+        <div class="layui-col-md12">
+            <button class="layui-btn layui-btn-normal" id="btn-add">
+                <i class="layui-icon layui-icon-add-1"></i> 新增角色
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="layui-card">
+    <div class="layui-card-body">
+        <table class="layui-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>角色名称</th>
+                    <th>描述</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for role in roles %}
+                <tr>
+                    <td>{{ role.id }}</td>
+                    <td>{{ role.name }}</td>
+                    <td>{{ role.description }}</td>
+                    <td>
+                        <button class="layui-btn layui-btn-xs layui-btn-normal btn-edit" data-id="{{ role.id }}">编辑/权限</button>
+                        <button class="layui-btn layui-btn-xs layui-btn-danger btn-delete" data-id="{{ role.id }}">删除</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Form Modal -->
+<div id="roleForm" style="display: none; padding: 20px;">
+    <form class="layui-form" lay-filter="roleForm">
+        <div class="layui-form-item">
+            <label class="layui-form-label">角色名称</label>
+            <div class="layui-input-block">
+                <input type="text" name="name" required lay-verify="required" class="layui-input">
+            </div>
+        </div>
+        <div class="layui-form-item">
+            <label class="layui-form-label">描述</label>
+            <div class="layui-input-block">
+                <textarea name="description" class="layui-textarea"></textarea>
+            </div>
+        </div>
+        
+        <div class="layui-form-item">
+            <label class="layui-form-label">菜单权限</label>
+            <div class="layui-input-block">
+                <div id="menu-tree" style="padding-top: 5px;">
+                    {% for menu in all_menus %}
+                        {% if menu.parent_id == None %}
+                            <div style="margin-bottom: 5px;">
+                                <input type="checkbox" name="menu_ids[]" value="{{ menu.id }}" title="{{ menu.name }}" lay-skin="primary">
+                                {% if menu.children|length > 0 %}
+                                    <div style="margin-left: 20px; margin-top: 5px; margin-bottom: 5px; border-left: 1px solid #eee; padding-left: 10px;">
+                                        {% for child in menu.children %}
+                                        <input type="checkbox" name="menu_ids[]" value="{{ child.id }}" title="{{ child.name }}" lay-skin="primary">
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="layui-form-item" style="text-align: center;">
+            <button class="layui-btn" lay-submit lay-filter="submitRole">提交</button>
+        </div>
+    </form>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+layui.use(['layer', 'form'], function(){
+    var layer = layui.layer;
+    var form = layui.form;
+    var $ = layui.$;
+    
+    // Add
+    $('#btn-add').click(function(){
+        // Reset form
+        $('form[lay-filter="roleForm"]')[0].reset();
+        $('input[name="menu_ids[]"]').prop('checked', false);
+        form.render();
+        
+        layer.open({
+            type: 1,
+            title: '新增角色',
+            area: ['600px', '600px'],
+            content: $('#roleForm'),
+            success: function(){
+                form.on('submit(submitRole)', function(data){
+                    var menu_ids = [];
+                    // We must select checked checkboxes manually because layui form submit handling of array names can be tricky
+                    $('#menu-tree input[type="checkbox"]:checked').each(function(){
+                        menu_ids.push($(this).val());
+                    });
+                    
+                    $.ajax({
+                        url: '/admin/roles/add',
+                        type: 'POST',
+                        contentType: 'application/json',
+                        data: JSON.stringify({
+                            name: $('input[name="name"]').val(),
+                            description: $('textarea[name="description"]').val(),
+                            menu_ids: menu_ids
+                        }),
+                        success: function(res){
+                            if(res.status === 'success'){
+                                layer.msg(res.message);
+                                setTimeout(function(){ location.reload(); }, 1000);
+                            } else {
+                                layer.msg(res.message, {icon: 2});
+                            }
+                        }
+                    });
+                    return false;
+                });
+            }
+        });
+    });
+    
+    // Edit
+    $('.btn-edit').click(function(){
+        var id = $(this).data('id');
+        $.get('/admin/roles/' + id, function(res){
+            $('input[name="name"]').val(res.name);
+            $('textarea[name="description"]').val(res.description);
+            
+            // Reset checkboxes
+            $('input[name="menu_ids[]"]').prop('checked', false);
+            
+            // Check assigned menus
+            if(res.menu_ids){
+                res.menu_ids.forEach(function(mid){
+                    $('input[value="' + mid + '"]').prop('checked', true);
+                });
+            }
+            
+            form.render();
+            
+            layer.open({
+                type: 1,
+                title: '编辑角色',
+                area: ['600px', '600px'],
+                content: $('#roleForm'),
+                success: function(){
+                    form.on('submit(submitRole)', function(data){
+                        var menu_ids = [];
+                        $('#menu-tree input[type="checkbox"]:checked').each(function(){
+                            menu_ids.push($(this).val());
+                        });
+                        
+                        $.ajax({
+                            url: '/admin/roles/' + id + '/edit',
+                            type: 'POST',
+                            contentType: 'application/json',
+                            data: JSON.stringify({
+                                name: $('input[name="name"]').val(),
+                                description: $('textarea[name="description"]').val(),
+                                menu_ids: menu_ids
+                            }),
+                            success: function(res){
+                                if(res.status === 'success'){
+                                    layer.msg(res.message);
+                                    setTimeout(function(){ location.reload(); }, 1000);
+                                }
+                            }
+                        });
+                        return false;
+                    });
+                }
+            });
+        });
+    });
+    
+    // Delete
+    $('.btn-delete').click(function(){
+        var id = $(this).data('id');
+        layer.confirm('确定删除该角色吗？', {icon: 3, title:'提示'}, function(index){
+            $.post('/admin/roles/' + id + '/delete', function(res){
+                if(res.status === 'success'){
+                    layer.msg(res.message);
+                    setTimeout(function(){ location.reload(); }, 1000);
+                } else {
+                    layer.msg(res.message, {icon: 2});
+                }
+            });
+            layer.close(index);
+        });
+    });
+});
+</script>
+{% endblock %}
