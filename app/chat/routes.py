@@ -921,7 +921,7 @@ def websocket(ws):
                                 'avatar': current_user_obj.avatar if current_user_obj else None,
                                 'content': content,
                                 'timestamp': datetime.now().strftime('%H:%M')
-                            })
+                            }
 
                             # Check for Bot Trigger
                             if content.startswith('@小师妹'):

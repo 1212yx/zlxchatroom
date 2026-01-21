@@ -1,46 +1,26 @@
-
-import os
-import sys
-from flask import Flask, session
-from app import create_app, db
+from app import create_app
+from app.extensions import db
 from app.models import AdminUser
 
-# Create a minimal test client
 app = create_app()
-app.config['TESTING'] = True
-app.config['WTF_CSRF_ENABLED'] = False
 
-with app.test_client() as client:
-    with app.app_context():
-        # Login as admin
-        # We need to set the session manually or simulate login
-        # Admin login uses session['admin_user_id']
-        
-        # Find an admin user
-        admin = AdminUser.query.first()
-        if not admin:
-            print("No admin user found!")
-            sys.exit(1)
-            
+with app.app_context():
+    with app.test_client() as client:
         with client.session_transaction() as sess:
-            sess['admin_user_id'] = admin.id
-            
-        print(f"--- Testing /admin/messages with admin id {admin.id} ---")
+            # Simulate login
+            admin = AdminUser.query.filter_by(username='admin').first()
+            if admin:
+                sess['admin_user_id'] = admin.id
+                print(f"Logged in as admin id: {admin.id}")
+            else:
+                print("Admin user not found!")
+                
         try:
-            response = client.get('/admin/messages')
+            response = client.get('/admin/')
             print(f"Status Code: {response.status_code}")
             if response.status_code == 500:
-                print("Internal Server Error detected.")
-                # The Flask test client usually prints the exception to stderr, 
-                # but we can't easily capture that in the tool output unless we redirect stderr.
-                # However, create_app usually configures logging.
+                print("Error detected!")
         except Exception as e:
-            print(f"Exception during request: {e}")
-
-        print("\n--- Testing /admin/rooms/1/announce ---")
-        try:
-            # Assuming room 1 exists
-            response = client.post('/admin/rooms/1/announce', data={'content': 'Test Announcement'})
-            print(f"Status Code: {response.status_code}")
-        except Exception as e:
-             print(f"Exception during request: {e}")
+            print(f"Exception caught: {e}")
+            import traceback
+            traceback.print_exc()
