@@ -1,0 +1,210 @@
+{% extends "admin/layout.html" %}
+
+{% block breadcrumb %}业务管理 / 群文件管理{% endblock %}
+
+{% block content %}
+<!-- Statistics Charts -->
+<div class="layui-row layui-col-space15">
+    <div class="layui-col-md6">
+        <div class="layui-card">
+            <div class="layui-card-header">文件类型分布 (按大小)</div>
+            <div class="layui-card-body">
+                <div id="typeStatsChart" style="height: 300px;"></div>
+            </div>
+        </div>
+    </div>
+    <div class="layui-col-md6">
+        <div class="layui-card">
+            <div class="layui-card-header">群组文件占用 Top 10</div>
+            <div class="layui-card-body">
+                <div id="roomStatsChart" style="height: 300px;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- File List -->
+<div class="layui-card">
+    <div class="layui-card-header">文件列表</div>
+    <div class="layui-card-body">
+        <!-- Search Filter -->
+        <form class="layui-form" method="GET" action="{{ url_for('admin.room_files') }}">
+            <div class="layui-form-item">
+                <div class="layui-inline">
+                    <label class="layui-form-label">所属群组</label>
+                    <div class="layui-input-inline">
+                        <select name="room_id">
+                            <option value="">全部群组</option>
+                            {% for room in rooms %}
+                            <option value="{{ room.id }}" {% if current_room_id == room.id %}selected{% endif %}>{{ room.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="layui-inline">
+                    <label class="layui-form-label">文件类型</label>
+                    <div class="layui-input-inline">
+                        <input type="text" name="file_type" placeholder="如: jpg, pdf" autocomplete="off" class="layui-input" value="{{ current_file_type or '' }}">
+                    </div>
+                </div>
+                <div class="layui-inline">
+                    <button class="layui-btn layui-btn-normal" lay-submit>
+                        <i class="layui-icon layui-icon-search"></i> 搜索
+                    </button>
+                    <a href="{{ url_for('admin.room_files') }}" class="layui-btn layui-btn-primary">重置</a>
+                </div>
+            </div>
+        </form>
+
+        <table class="layui-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>文件名</th>
+                    <th>大小</th>
+                    <th>类型</th>
+                    <th>上传者</th>
+                    <th>所属群组</th>
+                    <th>上传时间</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for file in files %}
+                <tr>
+                    <td>{{ file.id }}</td>
+                    <td>{{ file.original_filename }}</td>
+                    <td>{{ (file.file_size / 1024)|round(2) }} KB</td>
+                    <td><span class="layui-badge layui-bg-gray">{{ file.file_type }}</span></td>
+                    <td>{{ file.user.username if file.user else 'Unknown' }}</td>
+                    <td>{{ file.room.name if file.room else 'Unknown' }}</td>
+                    <td>{{ file.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                    <td>
+                        <button class="layui-btn layui-btn-xs layui-btn-disabled" title="无下载权限">下载</button>
+                        <button class="layui-btn layui-btn-xs layui-btn-disabled" title="无删除权限">删除</button>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="8" style="text-align: center;">暂无文件数据</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        
+        <!-- Pagination -->
+        <div id="pagination"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('admin.static', filename='admin/js/echarts.min.js') }}"></script>
+<script>
+layui.use(['element', 'laypage', 'form'], function(){
+    var element = layui.element;
+    var laypage = layui.laypage;
+    var form = layui.form;
+    var $ = layui.$;
+
+    // Render Pagination
+    laypage.render({
+        elem: 'pagination',
+        count: {{ pagination.total }},
+        limit: {{ pagination.per_page }},
+        curr: {{ pagination.page }},
+        layout: ['count', 'prev', 'page', 'next', 'skip'],
+        jump: function(obj, first){
+            if(!first){
+                var url = new URL(window.location.href);
+                url.searchParams.set('page', obj.curr);
+                window.location.href = url.toString();
+            }
+        }
+    });
+
+    // Init Charts
+    var typeChart = echarts.init(document.getElementById('typeStatsChart'));
+    var roomChart = echarts.init(document.getElementById('roomStatsChart'));
+
+    // Fetch Chart Data
+    $.getJSON("{{ url_for('admin.file_stats') }}", function(data){
+        // Type Chart
+        typeChart.setOption({
+            tooltip: {
+                trigger: 'item',
+                formatter: '{b}: {c} bytes ({d}%)'
+            },
+            legend: {
+                orient: 'vertical',
+                left: 'left'
+            },
+            series: [
+                {
+                    name: '文件类型',
+                    type: 'pie',
+                    radius: '50%',
+                    data: data.type_stats,
+                    emphasis: {
+                        itemStyle: {
+                            shadowBlur: 10,
+                            shadowOffsetX: 0,
+                            shadowColor: 'rgba(0, 0, 0, 0.5)'
+                        }
+                    }
+                }
+            ]
+        });
+
+        // Room Chart
+        roomChart.setOption({
+            tooltip: {
+                trigger: 'axis',
+                axisPointer: {
+                    type: 'shadow'
+                }
+            },
+            grid: {
+                left: '3%',
+                right: '4%',
+                bottom: '3%',
+                containLabel: true
+            },
+            xAxis: [
+                {
+                    type: 'category',
+                    data: data.room_stats.names,
+                    axisTick: {
+                        alignWithLabel: true
+                    },
+                    axisLabel: {
+                        rotate: 45,
+                        interval: 0
+                    }
+                }
+            ],
+            yAxis: [
+                {
+                    type: 'value',
+                    name: '总大小 (Bytes)'
+                }
+            ],
+            series: [
+                {
+                    name: '文件大小',
+                    type: 'bar',
+                    barWidth: '60%',
+                    data: data.room_stats.values
+                }
+            ]
+        });
+    });
+    
+    // Resize charts on window resize
+    window.onresize = function() {
+        typeChart.resize();
+        roomChart.resize();
+    };
+});
+</script>
+{% endblock %}

@@ -1,0 +1,80 @@
+{% extends "admin/layout.html" %}
+
+{% block content %}
+<div class="layui-card">
+    <div class="layui-card-header">
+        敏感词管理
+        <button class="layui-btn layui-btn-sm layui-btn-danger" style="float: right; margin-top: 5px;" onclick="openAddModal()">
+            <i class="layui-icon">&#xe654;</i> 添加敏感词
+        </button>
+    </div>
+    <div class="layui-card-body">
+        <table class="layui-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>敏感词</th>
+                    <th>创建时间</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for word in words %}
+                <tr>
+                    <td>{{ word.id }}</td>
+                    <td><span class="layui-badge">{{ word.word }}</span></td>
+                    <td>{{ word.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                    <td>
+                        <button class="layui-btn layui-btn-xs layui-btn-danger" onclick="deleteWord('{{ word.id }}')">删除</button>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="4" style="text-align: center;">暂无敏感词</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+function openAddModal() {
+    layer.prompt({title: '输入敏感词', formType: 0}, function(value, index){
+        fetch("{{ url_for('admin.add_sensitive_word') }}", {
+            method: 'POST',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: 'word=' + encodeURIComponent(value)
+        })
+        .then(res => res.json())
+        .then(data => {
+            if(data.status === 'success') {
+                layer.msg('添加成功', {icon: 1});
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                layer.msg(data.message, {icon: 2});
+            }
+        });
+        layer.close(index);
+    });
+}
+
+function deleteWord(id) {
+    layer.confirm('确定要删除这个敏感词吗？', function(index){
+        fetch("{{ url_for('admin.delete_sensitive_word', id=0) }}".replace('0', id), {
+            method: 'POST'
+        })
+        .then(res => res.json())
+        .then(data => {
+            if(data.status === 'success') {
+                layer.msg('删除成功', {icon: 1});
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                layer.msg('删除失败', {icon: 2});
+            }
+        });
+        layer.close(index);
+    });
+}
+</script>
+{% endblock %}

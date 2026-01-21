@@ -66,72 +66,96 @@ body {
 }
 
 /* Menu Screen */
+#menu-screen {
+    flex-direction: column; /* Vertical split */
+    align-items: stretch;
+    justify-content: flex-start;
+    height: 100vh;
+    overflow: hidden; /* Prevent body scroll */
+}
+
 .menu-header {
-    text-align: center;
+    text-align: center; /* Center align for top panel */
     color: white;
-    margin-bottom: 30px;
+    margin-bottom: 0;
+    flex: 3; /* Reduced to 30% height to save space */
+    padding: 10px; /* Reduced padding */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: auto;
+    width: 100%;
+    background: rgba(0, 0, 0, 0.2);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    z-index: 10;
 }
 
 .logo {
     display: flex;
     align-items: center;
-    justify-content: center;
-    gap: 15px;
-    margin-bottom: 10px;
+    justify-content: center; /* Center align logo */
+    gap: 10px; /* Reduced gap */
+    margin-bottom: 5px; /* Reduced margin */
 }
 
 .logo i {
-    font-size: 3rem;
+    font-size: 2.5rem; /* Reduced size */
     color: #00e676;
 }
 
 .logo h1 {
-    font-size: 3rem;
+    font-size: 2.5rem; /* Reduced size */
     text-shadow: 0 2px 4px rgba(0,0,0,0.3);
 }
 
 .subtitle {
-    font-size: 1.2rem;
+    font-size: 1rem; /* Reduced size */
     opacity: 0.9;
-}
-
-.mode-cards {
-    display: flex;
-    justify-content: center;
-    gap: 30px;
-    flex-wrap: wrap;
-    margin-bottom: 30px;
 }
 
 .card {
     background: var(--card-bg);
     border-radius: var(--border-radius);
-    padding: 25px;
+    padding: 15px; /* Reduced padding */
     box-shadow: var(--shadow);
     transition: transform 0.3s ease;
 }
 
 .mode-card {
-    width: 300px;
+    flex: 1; /* Allow cards to grow */
+    min-width: 200px; /* Reduced minimum width */
     text-align: center;
     display: flex;
     flex-direction: column;
     align-items: center;
+    min-height: 0; /* Allow card to shrink if needed */
+    height: 100%; /* Fill container height */
+    padding: 20px; /* Reduced padding */
+    justify-content: space-between; /* Distribute space */
 }
 
 .mode-card:hover {
-    transform: translateY(-10px);
+    transform: translateY(-5px); /* Reduced hover effect */
+    box-shadow: 0 15px 30px rgba(0,0,0,0.15); /* Enhanced hover shadow */
+}
+
+.mode-card .btn {
+    margin-top: 0; /* Removed auto margin to reduce gap */
+    margin-bottom: 0;
+    padding: 8px 16px; /* Compact button */
+    font-size: 0.9rem;
 }
 
 .icon-wrapper {
-    width: 80px;
-    height: 80px;
+    width: 60px; /* Reduced size */
+    height: 60px; /* Reduced size */
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: 20px;
-    font-size: 2.5rem;
+    margin-bottom: 10px; /* Reduced margin */
+    font-size: 2rem; /* Reduced icon size */
     color: white;
 }
 
@@ -140,31 +164,41 @@ body {
 .multi-icon { background: var(--secondary-color); }
 
 .mode-card h2 {
-    margin-bottom: 15px;
+    margin-bottom: 10px; /* Reduced margin */
+    font-size: 1.2rem; /* Reduced font size */
     color: var(--text-color);
 }
 
 .mode-card p {
     color: var(--text-secondary);
-    font-size: 0.9rem;
-    margin-bottom: 20px;
-    line-height: 1.5;
-    flex-grow: 1;
+    font-size: 0.85rem; /* Smaller text */
+    margin-bottom: 15px; /* Reduced margin */
+    line-height: 1.4;
+    flex-grow: 0; /* Natural height */
+    display: -webkit-box;
+    -webkit-line-clamp: 2; /* Limit text lines */
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
 
 .features-list {
     list-style: none;
     text-align: left;
     width: 100%;
-    margin-bottom: 25px;
+    margin-bottom: 15px; /* Reduced margin */
     background: #f5f5f5;
-    padding: 15px;
+    padding: 10px; /* Reduced padding */
     border-radius: 8px;
+    flex-grow: 1; /* Allow list to take available space */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
 }
 
 .features-list li {
-    font-size: 0.85rem;
-    margin-bottom: 8px;
+    font-size: 1rem; /* Increased size */
+    margin-bottom: 5px; /* Reduced margin */
     color: var(--text-secondary);
     display: flex;
     align-items: center;
@@ -174,22 +208,183 @@ body {
     content: '•';
     color: var(--primary-color);
     font-weight: bold;
-    margin-right: 8px;
+    margin-right: 5px; /* Reduced margin */
 }
 
-/* Leaderboard */
+.main-content-row {
+    display: flex;
+    width: 100%;
+    max-width: none; 
+    margin: 0;
+    gap: 15px; /* Reduced gap */
+    align-items: stretch;
+    padding: 20px; /* Reduced padding */
+    box-sizing: border-box;
+    flex: 7; /* Increased to 70% height */
+    height: auto;
+    overflow: hidden; /* Prevent scrolling inside container if possible */
+    flex-direction: row; /* Horizontal layout for cards */
+    flex-wrap: nowrap; /* Prevent wrapping to keep in one row */
+}
+
+.mode-cards {
+    display: flex;
+    justify-content: center;
+    gap: 15px; /* Reduced gap */
+    flex-wrap: nowrap; /* Prevent wrapping */
+    margin-bottom: 0; /* Removed margin */
+    flex: 3; /* Occupy space */
+    width: auto;
+}
+
+/* Adjust Leaderboard to fit in the right panel */
 .leaderboard-section {
     background: var(--card-bg);
     border-radius: var(--border-radius);
-    padding: 20px;
-    max-width: 800px;
-    width: 100%;
-    margin: 0 auto;
+    padding: 15px; /* Reduced padding */
+    width: auto;
+    margin: 0;
     box-shadow: var(--shadow);
-    flex-grow: 1;
+    flex: 1; 
+    min-width: 250px; /* Reduced min-width */
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    height: 100%; /* Fill container height */
+    min-height: 0; /* Allow shrink */
+}
+
+/* Settings Modal */
+.settings-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+}
+
+.settings-modal.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.settings-content {
+    background: white;
+    padding: 30px;
+    border-radius: 16px;
+    width: 90%;
+    max-width: 400px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    transform: translateY(20px);
+    transition: transform 0.3s ease;
+    text-align: center;
+}
+
+.settings-modal.active .settings-content {
+    transform: translateY(0);
+}
+
+.settings-header {
+    margin-bottom: 20px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+}
+
+.settings-header h2 {
+    color: var(--primary-dark);
+}
+
+.settings-body {
+    margin-bottom: 25px;
+}
+
+.setting-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    font-size: 1.1rem;
+}
+
+/* Toggle Switch */
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 60px;
+    height: 34px;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: .4s;
+    border-radius: 34px;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 26px;
+    width: 26px;
+    left: 4px;
+    bottom: 4px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+}
+
+input:checked + .slider {
+    background-color: var(--success-color);
+}
+
+input:focus + .slider {
+    box-shadow: 0 0 1px var(--success-color);
+}
+
+input:checked + .slider:before {
+    transform: translateX(26px);
+}
+
+.settings-btn {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: rgba(255,255,255,0.2);
+    border: none;
+    color: white;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    transition: background 0.3s;
+    z-index: 100;
+}
+
+.settings-btn:hover {
+    background: rgba(255,255,255,0.4);
 }
 
 .leaderboard-section h3 {
@@ -201,7 +396,7 @@ body {
 .leaderboard-container {
     overflow-y: auto;
     flex-grow: 1;
-    max-height: 300px; /* Limit height to enable scrolling */
+    max-height: 500px; /* Limit height to enable scrolling, increased from 300px */
 }
 
 #leaderboard-table {
@@ -443,10 +638,27 @@ kbd {
     border: 1px solid var(--primary-color);
 }
 
+/* Difficulty Selector in Menu */
+.menu-difficulty-selector {
+    margin-top: 1rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+}
+
+.selector-label {
+    color: white;
+    font-size: 1rem;
+    font-weight: 500;
+}
+
 .difficulty-selector {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
+    display: flex;
+    gap: 0.5rem;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 0.25rem;
+    border-radius: 8px;
 }
 
 .diff-btn {
@@ -580,6 +792,14 @@ kbd {
 
 /* Responsive Design */
 @media (max-width: 1200px) {
+    .main-content-row {
+        flex-direction: column;
+    }
+    
+    .leaderboard-section {
+        width: 100%;
+    }
+
     .game-layout {
         flex-wrap: wrap;
         height: auto;
@@ -788,6 +1008,23 @@ kbd {
     border-color: #d32f2f;
 }
 
+.current-mode-display {
+    background: #f8f9fa;
+    padding: 8px 16px;
+    border-radius: 8px;
+    display: inline-block;
+    border: 1px solid #e9ecef;
+    min-width: 100px;
+    text-align: center;
+}
+
+.mode-text {
+    font-weight: 600;
+    color: var(--primary-color);
+    font-size: 1rem;
+    letter-spacing: 0.5px;
+}
+
 .rules-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -942,3 +1179,167 @@ kbd {
         font-size: 1.2rem;
     }
 }
+
+/* Skin Selector */
+.skin-selector {
+    display: flex;
+    gap: 0.5rem;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 0.5rem;
+    border-radius: 8px;
+    align-items: center;
+}
+
+.skin-option {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid rgba(255,255,255,0.2);
+    transition: transform 0.2s, box-shadow 0.2s;
+    position: relative; /* For tooltip positioning if needed */
+}
+
+.skin-option:hover {
+    transform: scale(1.1);
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+    z-index: 10;
+}
+
+/* Skin Preview Tooltip */
+#skin-preview-tooltip {
+    position: absolute;
+    z-index: 9999;
+    background: transparent;
+    border: none;
+    padding: 0; /* Remove padding to tighten fit */
+    pointer-events: none;
+    display: none;
+    box-shadow: none;
+    backdrop-filter: none;
+    transform: translateY(-50%); /* Center vertically relative to mouse/element */
+    left: 100%; /* Default to right side */
+    text-align: center; /* Ensure content is centered */
+}
+
+#skin-preview-canvas {
+    display: block;
+    margin: 0 auto;
+    /* background: rgba(255, 255, 255, 0.05); */
+    /* border-radius: 8px; */
+}
+
+.preview-title {
+    text-align: center;
+    color: #fff;
+    font-size: 14px;
+    font-weight: bold;
+    margin-bottom: 0;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+    display: none; /* Hide title to only show snake body */
+}
+
+.skin-option.active {
+    border-color: white;
+    box-shadow: 0 0 10px rgba(255,255,255,0.5);
+    transform: scale(1.2);
+}
+
+
+/* Kuromi Skin Button */
+.skin-option[data-skin="kuromi"] {
+    background: #FFC0CB; /* Pink */
+    border: 2px solid #FF69B4; /* HotPink border */
+    background-image: radial-gradient(circle at 50% 30%, white 10%, transparent 11%),
+                      radial-gradient(circle at 30% 30%, #FF69B4 5%, transparent 6%),
+                      radial-gradient(circle at 70% 30%, #FF69B4 5%, transparent 6%);
+    /* Cute little face hint */
+}
+
+.skin-option[data-skin="kuromi"]:hover {
+    box-shadow: 0 0 15px #FF69B4;
+}
+
+.skin-option[data-skin="kuromi"].active {
+    border-color: white;
+    box-shadow: 0 0 15px white, 0 0 30px #FF69B4;
+}
+
+
+/* Orange Soda Skin Button */
+.skin-option[data-skin="orange_soda"] {
+    background: #FF9800; /* Orange */
+    border: 2px solid #FFF; 
+    background-image: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.8) 10%, transparent 11%),
+                      radial-gradient(circle at 70% 60%, rgba(255,255,255,0.4) 5%, transparent 6%),
+                      linear-gradient(45deg, transparent 40%, rgba(255,255,255,0.2) 45%, transparent 50%);
+    box-shadow: 0 0 5px #FF9800;
+}
+
+.skin-option[data-skin="orange_soda"]:hover {
+    box-shadow: 0 0 15px #FF9800;
+    transform: scale(1.2) rotate(10deg);
+}
+
+.skin-option[data-skin="orange_soda"].active {
+    border-color: #FFEB3B; /* Lemon Yellow Border */
+    box-shadow: 0 0 15px #FFEB3B, 0 0 30px #FF9800;
+}
+
+
+/* Flower Fairy Skin Button */
+.skin-option[data-skin="flower_fairy"] {
+    background: #FFB7C5; /* Cherry Blossom Pink */
+    border: 2px solid #E1BEE7; /* Light Purple */
+    background-image: radial-gradient(circle at 50% 50%, rgba(255,255,255,0.8) 20%, transparent 25%),
+                      radial-gradient(circle at 20% 20%, #E1BEE7 10%, transparent 15%),
+                      radial-gradient(circle at 80% 80%, #E1BEE7 10%, transparent 15%);
+    box-shadow: 0 0 5px #FFB7C5;
+}
+
+.skin-option[data-skin="flower_fairy"]:hover {
+    box-shadow: 0 0 15px #FFB7C5, 0 0 25px #E1BEE7;
+    transform: scale(1.2) translateY(-2px);
+}
+
+.skin-option[data-skin="flower_fairy"].active {
+    border-color: #FFF;
+    box-shadow: 0 0 15px #FFF, 0 0 30px #FFB7C5;
+}
+
+
+/* Graceful Lady Skin */
+.skin-option[data-skin='graceful_lady'] {
+    background: #F48FB1;
+    border: 2px solid #F06292;
+    background-image: linear-gradient(135deg, #F8BBD0 0%, #F48FB1 50%, #FFD54F 100%);
+}
+
+.skin-option[data-skin='graceful_lady']:hover {
+    transform: scale(1.1);
+    box-shadow: 0 0 10px rgba(244, 143, 177, 0.6);
+}
+
+.skin-option[data-skin='graceful_lady'].active {
+    border-color: #C2185B;
+    box-shadow: 0 0 0 2px rgba(194, 24, 91, 0.3);
+}
+
+
+/* Moon Goddess Skin */
+.skin-option[data-skin='moon_goddess'] {
+    background: #4FC3F7;
+    border: 2px solid #03A9F4;
+    background-image: linear-gradient(135deg, #E1F5FE 0%, #4FC3F7 50%, #FFF176 100%);
+}
+
+.skin-option[data-skin='moon_goddess']:hover {
+    transform: scale(1.1);
+    box-shadow: 0 0 10px rgba(79, 195, 247, 0.6);
+}
+
+.skin-option[data-skin='moon_goddess'].active {
+    border-color: #0288D1;
+    box-shadow: 0 0 0 2px rgba(2, 136, 209, 0.3);
+}
+

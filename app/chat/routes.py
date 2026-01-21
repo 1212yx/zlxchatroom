@@ -8,6 +8,9 @@ import os
 import uuid
 from werkzeug.utils import secure_filename
 from datetime import datetime
+from app.bot.core import get_bot_response
+from app.chat.weather import get_weather_data, parse_weather_video
+from app.chat.music import get_music_data
 
 # Configure Uploads
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
@@ -747,6 +750,15 @@ def websocket(ws):
     room = None
     room_id = None
     
+    # Log Connect
+    if user_obj:
+        try:
+            log = ActivityLog(user_id=user_obj.id, username=user_obj.username, action='login', content='上线')
+            db.session.add(log)
+            db.session.commit()
+        except:
+            db.session.rollback()
+    
     try:
         # Wait for first message which should be join
         print("Waiting for join message...")
@@ -786,13 +798,30 @@ def websocket(ws):
                     history = Message.query.filter_by(room_id=room_id).order_by(Message.timestamp.desc()).limit(50).all()
                     history.reverse() # Show latest messages
                     for h_msg in history:
+                         sender_name = h_msg.author.nickname if h_msg.author else 'Unknown'
+                         # Try to determine sender for special messages if author is None
+                         if not h_msg.author and h_msg.content.startswith('SPECIAL:'):
+                             try:
+                                 special_data = json.loads(h_msg.content[8:])
+                                 msg_type = special_data.get('type')
+                                 if msg_type == 'weather':
+                                     sender_name = '小天气'
+                                 elif msg_type.startswith('music'):
+                                     sender_name = '小音乐'
+                             except:
+                                 pass
+                         
+                         # For bot response (if we decide to save it), we might need a way to identify it.
+                         # For now, let's just send what we have.
+                         
                          history_data.append({
                             'type': 'chat',
-                            'user': h_msg.author.nickname if h_msg.author else 'Unknown',
+                            'user': sender_name,
                             'username': h_msg.author.username if h_msg.author else None,
                             'avatar': h_msg.author.avatar if h_msg.author else None,
                             'content': h_msg.content,
-                            'timestamp': h_msg.timestamp.strftime('%H:%M')
+                            'timestamp': h_msg.timestamp.strftime('%H:%M'),
+                            'is_history': True
                          })
                 
                 # Release session after fetching history
@@ -810,6 +839,14 @@ def websocket(ws):
                     'content': f'{user} 加入了 {room}',
                     'timestamp': datetime.now().strftime('%H:%M')
                 })
+                
+                # Log Join
+                try:
+                    log = ActivityLog(user_id=user_obj.id if user_obj else None, username=user, action='join_room', content=room)
+                    db.session.add(log)
+                    db.session.commit()
+                except:
+                    db.session.rollback()
                 
                 # Broadcast updated user list
                 print("Broadcasting user list...")
@@ -833,11 +870,48 @@ def websocket(ws):
                                 if current_user_obj:
                                     user = current_user_obj.nickname # Update local user variable
                             
+                            # Check sensitive words
+                            sensitive_words = SensitiveWord.query.all()
+                            found_sensitive = None
+                            for sw in sensitive_words:
+                                if sw.word in content:
+                                    found_sensitive = sw.word
+                                    break
+                            
+                            if found_sensitive:
+                                # Intercept and Log Warning
+                                if user_obj and room_obj:
+                                    warning = WarningLog(
+                                        content=content,
+                                        user_id=user_obj.id,
+                                        room_id=room_obj.id,
+                                        triggered_word=found_sensitive
+                                    )
+                                    db.session.add(warning)
+                                    db.session.commit()
+                                
+                                # Notify sender only
+                                ws.send(json.dumps({
+                                    'type': 'system', 
+                                    'content': f'系统拦截：您的消息包含敏感词 "{found_sensitive}"，发送失败。',
+                                    'timestamp': datetime.now().strftime('%H:%M')
+                                }))
+                                # Skip broadcast and save
+                                continue
+
                             # Save to DB
                             if user_id and room_id:
                                 db_msg = Message(content=content, user_id=user_id, room_id=room_id)
                                 db.session.add(db_msg)
                                 db.session.commit()
+                                
+                                # Log Chat Activity
+                                try:
+                                    log = ActivityLog(user_id=user_obj.id, username=user, action='chat', content=content[:50]) # limit content length
+                                    db.session.add(log)
+                                    db.session.commit()
+                                except:
+                                    db.session.rollback()
                             
                             # Prepare broadcast data
                             broadcast_msg = {
@@ -847,16 +921,175 @@ def websocket(ws):
                                 'avatar': current_user_obj.avatar if current_user_obj else None,
                                 'content': content,
                                 'timestamp': datetime.now().strftime('%H:%M')
-                            }
-                            
-                            # Release session immediately
-                            db.session.remove()
+                            })
 
-                            broadcast(room, broadcast_msg)
+                            # Check for Bot Trigger
+                            if content.startswith('@小师妹'):
+                                try:
+                                    # Stream response
+                                    broadcast(room, {'type': 'stream_start', 'user': '小师妹', 'timestamp': datetime.now().strftime('%H:%M')})
+                                    full_response = ""
+                                    # Remove trigger word
+                                    query = content.replace('@小师妹', '').strip()
+                                    for chunk in get_bot_response(query, user, room):
+                                        broadcast(room, {
+                                            'type': 'stream_chunk',
+                                            'content': chunk,
+                                            'user': '小师妹'
+                                        })
+                                        full_response += chunk
+                                    
+                                    broadcast(room, {'type': 'stream_end', 'user': '小师妹'})
+                                    
+                                    # Save Bot Response to DB (Persistence)
+                                    if full_response and room_obj:
+                                        # Use a special format to identify it's from Bot (since user_id is None)
+                                        # Or just save text. History loader defaults to 'Unknown' -> we can patch loader to show '小师妹'
+                                        # But let's use SPECIAL for consistency if possible, or just accept 'Unknown' for now.
+                                        # Actually, better to just save it.
+                                        bot_msg = Message(content=full_response, user_id=None, room_id=room_obj.id)
+                                        db.session.add(bot_msg)
+                                        db.session.commit()
+                                        
+                                except Exception as e:
+                                    print(f"Bot Error: {e}")
+                                    broadcast(room, {
+                                        'type': 'chat',
+                                        'user': 'System',
+                                        'content': f"小师妹出错了: {str(e)}",
+                                        'timestamp': datetime.now().strftime('%H:%M')
+                                    })
+                            
+                            # Check for Weather Trigger
+                            elif content.startswith('小天气'):
+                                try:
+                                    city = content.replace('小天气', '').strip()
+                                    if not city:
+                                        city = "北京"
+                                    
+                                    broadcast(room, {
+                                        'type': 'chat', 
+                                        'user': '小天气', 
+                                        'content': f"正在查询 {city} 的天气...", 
+                                        'timestamp': datetime.now().strftime('%H:%M')
+                                    })
+
+                                    data = get_weather_data(city)
+                                    
+                                    if 'error' in data:
+                                        broadcast(room, {
+                                            'type': 'chat',
+                                            'user': '小天气',
+                                            'content': f"查询失败: {data['error']}",
+                                            'timestamp': datetime.now().strftime('%H:%M')
+                                        })
+                                    else:
+                                        # Create Special Message for Persistence
+                                        special_payload = {
+                                            'type': 'weather',
+                                            'data': data
+                                        }
+                                        special_content = "SPECIAL:" + json.dumps(special_payload)
+                                        
+                                        # Save to DB
+                                        if room_obj:
+                                            db_msg = Message(content=special_content, user_id=None, room_id=room_obj.id)
+                                            db.session.add(db_msg)
+                                            db.session.commit()
+
+                                        # Broadcast
+                                        broadcast(room, {
+                                            'type': 'chat', # Send as chat so frontend appendMessage handles it (we will update appendMessage)
+                                            'user': '小天气',
+                                            'content': special_content,
+                                            'timestamp': datetime.now().strftime('%H:%M')
+                                        })
+
+                                except Exception as e:
+                                    print(f"Weather Error: {e}")
+                                    broadcast(room, {
+                                        'type': 'chat',
+                                        'user': 'System',
+                                        'content': f"天气查询出错: {str(e)}",
+                                        'timestamp': datetime.now().strftime('%H:%M')
+                                    })
+
+                            # Check for Music Trigger
+                            elif content.startswith('小音乐'):
+                                try:
+                                    cmd = content.strip()
+                                    mode = None
+                                    if '群内送歌' in cmd:
+                                        mode = 'gift'
+                                    elif '随机播放' in cmd:
+                                        mode = 'random'
+                                    
+                                    if mode:
+                                        broadcast(room, {
+                                            'type': 'chat', 
+                                            'user': '小音乐', 
+                                            'content': "正在获取音乐...", 
+                                            'timestamp': datetime.now().strftime('%H:%M')
+                                        })
+
+                                        data = get_music_data(mode)
+                                        
+                                        if 'error' in data:
+                                            broadcast(room, {
+                                                'type': 'chat',
+                                                'user': '小音乐',
+                                                'content': f"获取失败: {data['error']}",
+                                                'timestamp': datetime.now().strftime('%H:%M')
+                                            })
+                                        else:
+                                            # Construct Special Message
+                                            special_type = 'music_gift' if mode == 'gift' else 'music_private'
+                                            special_payload = {
+                                                'type': special_type,
+                                                'data': data,
+                                                'target_user': user if mode == 'random' else None
+                                            }
+                                            special_content = "SPECIAL:" + json.dumps(special_payload)
+                                            
+                                            # Save to DB
+                                            if room_obj:
+                                                db_msg = Message(content=special_content, user_id=None, room_id=room_obj.id)
+                                                db.session.add(db_msg)
+                                                db.session.commit()
+                                            
+                                            # Broadcast
+                                            broadcast(room, {
+                                                'type': 'chat',
+                                                'user': '小音乐',
+                                                'content': special_content,
+                                                'timestamp': datetime.now().strftime('%H:%M')
+                                            })
+                                            
+                                except Exception as e:
+                                    print(f"Music Error: {e}")
+                                    broadcast(room, {
+                                        'type': 'chat',
+                                        'user': 'System',
+                                        'content': f"音乐服务出错: {str(e)}",
+                                        'timestamp': datetime.now().strftime('%H:%M')
+                                    })
+
     except Exception as e:
         print(f"WS Error: {e}")
         db.session.remove() # Ensure release on error
     finally:
+        # Log Leave/Logout
+        if user:
+            try:
+                if room:
+                    log_leave = ActivityLog(user_id=user_obj.id if user_obj else None, username=user, action='leave_room', content=room)
+                    db.session.add(log_leave)
+                log_out = ActivityLog(user_id=user_obj.id if user_obj else None, username=user, action='logout', content='下线')
+                db.session.add(log_out)
+                db.session.commit()
+            except:
+                db.session.rollback()
+
         if room and room in rooms and ws in rooms[room]:
             rooms[room].remove(ws)
             if ws in ws_user_map:
