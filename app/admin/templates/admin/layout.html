@@ -30,7 +30,7 @@
         <ul class="layui-nav layui-layout-right">
             <li class="layui-nav-item">
                 <a href="javascript:;">
-                    <img src="{{ url_for('admin.static', filename='admin/avatars/' + current_admin.avatar) if current_admin and current_admin.avatar else 'http://t.cn/RCzsdCq' }}" class="layui-nav-img">
+                    <img src="{{ url_for('admin.static', filename='admin/avatars/' + current_admin.avatar) if current_admin and current_admin.avatar else 'https://ui-avatars.com/api/?name=Admin&background=009688&color=fff' }}" class="layui-nav-img" onerror="this.src='https://ui-avatars.com/api/?name=Admin&background=009688&color=fff'">
                     {{ current_admin.nickname or current_admin.username if current_admin else '管理员' }}
                 </a>
                 <dl class="layui-nav-child">
@@ -46,62 +46,43 @@
     <div class="layui-side layui-bg-black">
         <div class="layui-side-scroll">
             <ul class="layui-nav layui-nav-tree" lay-filter="test">
-                <!-- 首页 -->
-                <li class="layui-nav-item {% if request.endpoint == 'admin.index' %}layui-this{% endif %}">
-                    <a href="{{ url_for('admin.index') }}">
-                        <i class="layui-icon layui-icon-home" style="margin-right: 10px;"></i> 控制台
-                    </a>
-                </li>
+                {% if admin_menus %}
+                    {% for menu in admin_menus %}
+                        {# Check children for active state to expand parent #}
+                        {% set has_active_child = False %}
+                        {% for child in menu.children %}
+                            {% if child.url and request.endpoint == child.url %}
+                                {% set has_active_child = True %}
+                            {% endif %}
+                        {% endfor %}
 
-                <!-- 用户管理 (展开状态) -->
-                <li class="layui-nav-item layui-nav-itemed">
-                    <a href="javascript:;">
-                        <i class="layui-icon layui-icon-user" style="margin-right: 10px;"></i> 用户管理
-                    </a>
-                    <dl class="layui-nav-child">
-                        <dd class="{% if request.endpoint == 'admin.users' %}layui-this{% endif %}">
-                            <a href="{{ url_for('admin.users') }}">用户列表</a>
-                        </dd>
-                        <!-- 占位菜单，模仿图片 -->
-                        <dd><a href="javascript:;">管理员管理</a></dd>
-                    </dl>
-                </li>
-
-                <!-- 采集管理 -->
-                <li class="layui-nav-item {{ 'layui-nav-itemed' if request.path.startswith('/admin/rooms') or request.path.startswith('/admin/servers') else '' }}">
-                    <a href="javascript:;"><i class="layui-icon layui-icon-app"></i><span class="menu-text"> 后台采集</span></a>
-                    <dl class="layui-nav-child">
-                        <dd class="{{ 'layui-this' if request.path.startswith('/admin/rooms') else '' }}">
-                            <a href="{{ url_for('admin.rooms') }}">房间管理</a>
-                        </dd>
-                        <dd class="{{ 'layui-this' if request.path.startswith('/admin/servers') else '' }}">
-                            <a href="{{ url_for('admin.servers') }}">ws服务器管理</a>
-                        </dd>
-                    </dl>
-                </li>
-
-                <!-- AI模型引擎 -->
-                <li class="layui-nav-item {% if request.path.startswith('/admin/ai-models') %}layui-this{% endif %}">
-                    <a href="{{ url_for('admin.ai_models') }}">
-                        <i class="layui-icon layui-icon-engine" style="margin-right: 10px;"></i> AI模型引擎
-                    </a>
-                </li>
-
-                <!-- AI机器人列表 -->
-                <li class="layui-nav-item {% if request.path.startswith('/admin/robots') %}layui-this{% endif %}">
-                    <a href="{{ url_for('admin.robots') }}">
-                        <i class="layui-icon layui-icon-dialogue" style="margin-right: 10px;"></i> AI机器人列表
-                    </a>
-                </li>
-
-                <!-- 接口管理 -->
-                <li class="layui-nav-item {% if request.path.startswith('/admin/apis') %}layui-this{% endif %}">
-                    <a href="{{ url_for('admin.apis') }}">
-                        <i class="layui-icon layui-icon-link" style="margin-right: 10px;"></i> 接口管理
-                    </a>
-                </li>
-
-                <!-- 模拟其他菜单已移除 -->
+                        <li class="layui-nav-item {% if menu.url and request.endpoint == menu.url %}layui-this{% endif %} {% if has_active_child %}layui-nav-itemed{% endif %}">
+                            {% set children_to_render = menu.visible_children if menu.visible_children is defined else menu.children %}
+                            {% if children_to_render|length > 0 %}
+                                <a href="javascript:;">
+                                    {% if menu.icon %}<i class="layui-icon {{ menu.icon }}" style="margin-right: 10px;"></i>{% endif %} {{ menu.name }}
+                                </a>
+                                <dl class="layui-nav-child">
+                                    {% for child in children_to_render %}
+                                        {% if child.is_visible %}
+                                            <dd class="{% if child.url and request.endpoint == child.url %}layui-this{% endif %}">
+                                                <a href="{{ url_for(child.url) if child.url else 'javascript:;' }}">
+                                                    {% if child.icon %}<i class="layui-icon {{ child.icon }}"></i>{% endif %} {{ child.name }}
+                                                </a>
+                                            </dd>
+                                        {% endif %}
+                                    {% endfor %}
+                                </dl>
+                            {% else %}
+                                <a href="{{ url_for(menu.url) if menu.url else 'javascript:;' }}">
+                                    {% if menu.icon %}<i class="layui-icon {{ menu.icon }}" style="margin-right: 10px;"></i>{% endif %} {{ menu.name }}
+                                </a>
+                            {% endif %}
+                        </li>
+                    {% endfor %}
+                {% else %}
+                     <li class="layui-nav-item layui-this"><a href="{{ url_for('admin.index') }}">控制台</a></li>
+                {% endif %}
             </ul>
         </div>
     </div>

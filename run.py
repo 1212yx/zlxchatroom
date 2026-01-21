@@ -1,6 +1,23 @@
+import eventlet
+eventlet.monkey_patch()
+
 import os
 import json
-from app import create_app, socketio
+from app import create_app
+
+# Load configuration from config.json
+def load_config():
+    config_path = os.path.join(os.path.dirname(__file__), 'config.json')
+    default_config = {'host': '127.0.0.1', 'port': 8090}
+    
+    if os.path.exists(config_path):
+        try:
+            with open(config_path, 'r') as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"Error loading config.json: {e}")
+            return default_config
+    return default_config
 
 # Load configuration from config.json
 def load_config():

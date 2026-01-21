@@ -1,3 +1,162 @@
+class AudioManager {
+    constructor() {
+        this.sounds = {};
+        this.pendingPlay = null; // Track pending play requests
+
+        const sources = {
+            click: { src: '/game/static/mp4/click.mp4?v=2.2', loop: false, volume: 1.0 },
+            login: { src: '/game/static/mp4/menu_bgm.mp4?v=2.2', loop: true, volume: 0.5 },
+            bgm: { src: '/game/static/mp4/game_bgm.mp4?v=2.2', loop: true, volume: 0.5 },
+            win: { src: '/game/static/mp4/win.mp4?v=2.2', loop: false, volume: 1.0 },
+            fail: { src: '/game/static/mp4/fail.mp4?v=2.2', loop: false, volume: 1.0 }
+        };
+
+        // Initialize Audio objects
+        Object.keys(sources).forEach(key => {
+            const config = sources[key];
+            const audio = new Audio();
+            audio.loop = config.loop;
+            audio.volume = config.volume;
+            // Don't set src yet, wait for fetch
+            this.sounds[key] = audio;
+            this._loadSound(key, config.src);
+        });
+        
+        this.muted = localStorage.getItem('snakeMuted') === 'true';
+        this.updateMuteState();
+    }
+
+    async _loadSound(key, src) {
+        try {
+            const response = await fetch(src);
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            
+            const sound = this.sounds[key];
+            if (sound) {
+                sound.src = url;
+                // If this sound was pending to play, play it now
+                if (this.pendingPlay === key) {
+                    this.pendingPlay = null;
+                    const p = this.play(key);
+                    if (p) p.catch(e => console.debug('Autoplay prevented during load:', e));
+                }
+            }
+        } catch (e) {
+            console.warn(`Error loading audio ${src}:`, e);
+            // Fallback: try setting src directly if fetch fails
+            if (this.sounds[key] && !this.sounds[key].src) {
+                this.sounds[key].src = src;
+            }
+        }
+    }
+
+    play(name) {
+        if (this.muted) return;
+        const sound = this.sounds[name];
+        if (sound) {
+            // Check if src is ready
+            if (!sound.src) {
+                console.log(`Audio ${name} not ready yet, queuing...`);
+                this.pendingPlay = name;
+                return;
+            }
+
+            // For looping sounds (BGM), if already playing, do nothing
+            if (sound.loop && !sound.paused) {
+                return Promise.resolve();
+            }
+
+            // For one-shot sounds or if BGM is stopped, reset and play
+            // Only reset if not already at 0 to avoid triggering unnecessary seeks/aborts
+            if (sound.currentTime !== 0) {
+                sound.currentTime = 0;
+            }
+            
+            // Return the promise directly so caller can handle errors (like autoplay policy)
+            return sound.play();
+        }
+    }
+
+    stop(name) {
+        const sound = this.sounds[name];
+        if (sound) {
+            // Only pause if not already paused to avoid unnecessary aborts
+            if (!sound.paused) {
+                sound.pause();
+            }
+            // Do NOT reset currentTime here to avoid triggering new requests/aborts
+        }
+    }
+
+    toggleMute() {
+        this.muted = !this.muted;
+        localStorage.setItem('snakeMuted', this.muted);
+        this.updateMuteState();
+        return this.muted;
+    }
+
+    updateMuteState() {
+        if (this.muted) {
+            this.stop('bgm');
+            this.stop('login');
+        } else {
+            if (window.game && window.game.isRunning) {
+                 this.play('bgm');
+            }
+        }
+    }
+}
+
+const audioManager = new AudioManager();
+window.audioManager = audioManager;
+
+// Global Click Sound
+document.addEventListener('click', (e) => {
+    // Check if clicked element is interactive
+    if (e.target.tagName === 'BUTTON' || 
+        e.target.closest('button') || 
+        e.target.classList.contains('mode-card') || 
+        e.target.closest('.mode-card') ||
+        e.target.classList.contains('skin-option') ||
+        e.target.classList.contains('diff-btn') ||
+        e.target.tagName === 'A') {
+        audioManager.play('click').catch(() => {}); // Catch potential errors to avoid console noise
+    }
+});
+
+// Settings UI Logic
+document.addEventListener('DOMContentLoaded', () => {
+    const settingsBtn = document.getElementById('settings-btn');
+    const settingsModal = document.getElementById('settings-modal');
+    const closeSettingsBtn = document.getElementById('close-settings-btn');
+    const soundToggle = document.getElementById('sound-toggle');
+
+    if (settingsBtn) {
+        settingsBtn.onclick = () => settingsModal.classList.add('active');
+    }
+    if (closeSettingsBtn) {
+        closeSettingsBtn.onclick = () => settingsModal.classList.remove('active');
+    }
+    if (soundToggle) {
+        soundToggle.checked = !audioManager.muted;
+        soundToggle.onchange = () => {
+            audioManager.toggleMute();
+        };
+    }
+    
+    // Play Login sound on first interaction if on menu
+    const playLogin = () => {
+        if (document.getElementById('menu-screen').classList.contains('active')) {
+            const p = audioManager.play('login');
+            if (p) p.catch(() => {});
+        }
+        document.removeEventListener('click', playLogin);
+    };
+    document.addEventListener('click', playLogin);
+});
+
 class Game {
     constructor(canvasId) {
         this.canvas = document.getElementById(canvasId);
@@ -27,7 +186,6 @@ class Game {
         this.scoreEl = document.getElementById('score');
         this.lengthEl = document.getElementById('length');
         this.highScoreEl = document.getElementById('high-score');
-        this.foodCountEl = document.getElementById('food-count');
         this.overlay = document.getElementById('game-overlay');
         this.overlayTitle = document.getElementById('overlay-title');
         this.overlayMsg = document.getElementById('overlay-message');
@@ -44,37 +202,58 @@ class Game {
         this.loop = this.loop.bind(this);
     }
 
-    init(mode, difficulty) {
+    init(mode, difficulty, skinName = 'default') {
+        window.audioManager.stop('login');
         this.mode = mode;
-        this.difficulty = difficulty;
+        this.difficulty = difficulty; // "no_boundary", "obstacles", "time_limit"
         this.snakes = [];
         this.foods = [];
+        this.obstacles = []; // Init obstacles
         this.isRunning = false;
         this.isPaused = false;
         
-        // Set Difficulty Base Speed
-        switch(difficulty) {
-            case 'easy': this.baseTickRate = 200; break;
-            case 'medium': this.baseTickRate = 150; break;
-            case 'hard': this.baseTickRate = 100; break;
-            case 'expert': this.baseTickRate = 60; break;
-            default: this.baseTickRate = 150;
+        // Resolve Skin
+        const skinConfig = Utils.SKINS[skinName] || Utils.SKINS['default'];
+
+        // Reset Settings
+        this.settings = {
+            noBoundary: false,
+            obstacles: false,
+            timeLimit: false
+        };
+
+        // Apply Feature Mode Settings
+        if (difficulty === 'no_boundary') {
+            this.settings.noBoundary = true;
+        } else if (difficulty === 'obstacles') {
+            this.settings.obstacles = true;
+            this.spawnObstacles();
+        } else if (difficulty === 'time_limit') {
+            this.settings.timeLimit = true;
+            this.timeLeft = 60000; // 60 seconds
         }
+
+        // Set Base Speed (Default Medium for all feature modes)
+        this.baseTickRate = 150; 
         this.tickRate = this.baseTickRate;
 
         // Init Player Snake
-        const playerSnake = new Snake(this, 5, 5, false);
+        const playerSnake = new Snake(this, 5, 5, false, skinConfig, '我');
         this.snakes.push(playerSnake);
 
         // Init AI or P2
         if (mode === 'ai') {
-            const aiSnake = new Snake(this, 25, 25, true);
+            const aiSnake = new Snake(this, 25, 25, true, null, 'AI');
             this.snakes.push(aiSnake);
         } else if (mode === 'multi') {
-            // Player 2 (Arrows)
-            const p2Snake = new Snake(this, 25, 25, false, {head: '#2196F3', body: '#64B5F6'});
-            // Mark as P2 for input handling (handled by index or specific property, here index 1)
-            this.snakes.push(p2Snake);
+            // AI Opponents (matching Lobby UI)
+            // AI 1 (Top Right)
+            const ai1 = new Snake(this, this.cols - 6, 6, true, null, 'AI-1');
+            this.snakes.push(ai1);
+            
+            // AI 2 (Bottom Left)
+            const ai2 = new Snake(this, 6, this.rows - 6, true, null, 'AI-2');
+            this.snakes.push(ai2);
         }
 
         // Spawn Initial Food
@@ -90,8 +269,46 @@ class Game {
         this.showReadyScreen();
     }
 
+    spawnObstacles() {
+        this.obstacles = [];
+        // Increase obstacle count slightly for better challenge
+        const obstacleCount = 20; 
+
+        for (let i = 0; i < obstacleCount; i++) {
+            let valid = false;
+            let pos;
+            let attempts = 0;
+            
+            // Try to find a valid position
+            while (!valid && attempts < 100) {
+                attempts++;
+                pos = Utils.randomGridPosition(this.cols, this.rows);
+                
+                // Safety Zone for Player Start (Top Left area)
+                // Snake starts at 5,5. Avoid a 5-cell radius around it.
+                if (Math.abs(pos.x - 5) < 5 && Math.abs(pos.y - 5) < 5) continue;
+                
+                // Safety Zone for AI/P2 Start (Bottom Right area)
+                if (this.mode !== 'single') {
+                     if (Math.abs(pos.x - 25) < 5 && Math.abs(pos.y - 25) < 5) continue;
+                }
+
+                // Avoid overlap with existing obstacles
+                if (this.obstacles.some(obs => Utils.isSamePosition(obs, pos))) continue;
+                
+                valid = true;
+            }
+            
+            if (valid) {
+                this.obstacles.push(pos);
+            }
+        }
+    }
+
     run() {
         if (this.isRunning) return;
+        const p = window.audioManager.play('bgm');
+        if (p) p.catch(e => console.warn('Game BGM play failed:', e));
         this.isRunning = true;
         this.overlay.classList.add('hidden');
         this.lastTime = performance.now();
@@ -167,6 +384,16 @@ class Game {
     }
 
     update() {
+        // Update Timer for Time Limit Mode
+        if (this.settings.timeLimit && this.isRunning && !this.isPaused) {
+            this.timeLeft -= this.tickRate; // Use tickRate (logic step) for correct time subtraction
+            if (this.timeLeft <= 0) {
+                 this.timeLeft = 0;
+                 this.gameOver(this.snakes[0].score, "时间到！");
+                 return;
+            }
+        }
+
         // Update Snakes
         this.snakes.forEach(snake => snake.update());
 
@@ -206,6 +433,17 @@ class Game {
             // 1. Self Collision (handled in Snake logic mostly, but double check)
             if (!snake.invincible && snake.onSnake(head, true)) {
                 snake.die();
+            }
+
+            // Obstacle Collision
+            if (this.settings.obstacles) {
+                 this.obstacles.forEach(obs => {
+                     if (Utils.isSamePosition(head, obs)) {
+                         if (!snake.invincible) {
+                             snake.die();
+                         }
+                     }
+                 });
             }
 
             // 2. Other Snake Collision
@@ -344,11 +582,54 @@ class Game {
         }
         */
 
+        // Draw Obstacles
+        if (this.settings.obstacles) {
+            this.obstacles.forEach(obs => {
+                const x = obs.x * this.gridSize;
+                const y = obs.y * this.gridSize;
+                const s = this.gridSize;
+                
+                // Draw 3D Block Style
+                // Main Face
+                this.ctx.fillStyle = '#795548'; // Brown
+                this.ctx.fillRect(x, y, s, s);
+                
+                // Top/Left Highlight (Bevel)
+                this.ctx.beginPath();
+                this.ctx.moveTo(x + s, y);
+                this.ctx.lineTo(x, y);
+                this.ctx.lineTo(x, y + s);
+                this.ctx.strokeStyle = '#A1887F'; // Light Brown
+                this.ctx.lineWidth = 2;
+                this.ctx.stroke();
+                
+                // Bottom/Right Shadow (Bevel)
+                this.ctx.beginPath();
+                this.ctx.moveTo(x + s, y);
+                this.ctx.lineTo(x + s, y + s);
+                this.ctx.lineTo(x, y + s);
+                this.ctx.strokeStyle = '#4E342E'; // Dark Brown
+                this.ctx.stroke();
+                
+                // Inner Detail
+                this.ctx.fillStyle = '#6D4C41';
+                this.ctx.fillRect(x + 4, y + 4, s - 8, s - 8);
+            });
+        }
+
         // Draw Foods
         this.foods.forEach(food => food.draw(this.ctx, this.gridSize));
 
         // Draw Snakes
         this.snakes.forEach(snake => snake.draw(this.ctx, this.gridSize));
+
+        // Draw Timer
+        if (this.settings.timeLimit) {
+            this.ctx.fillStyle = 'white';
+            this.ctx.font = 'bold 24px Arial';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillText(`Time: ${Math.ceil(this.timeLeft / 1000)}`, this.canvas.width / 2, 40);
+        }
     }
 
     handleInput(key) {
@@ -401,12 +682,17 @@ class Game {
             this.scoreEl.innerText = p1.score;
             this.lengthEl.innerText = p1.length;
             this.highScoreEl.innerText = this.highScore;
-            this.foodCountEl.innerText = this.foods.length; // Actually collected count would be better, but this shows active. Requirement: "Collected food count".
-            // To fix "Collected food count", I should track it in Snake.
         }
     }
 
     gameOver(score, msg = "游戏结束") {
+        window.audioManager.stop('bgm');
+        if (msg.includes("胜利")) {
+             window.audioManager.play('win');
+        } else {
+             window.audioManager.play('fail');
+        }
+
         this.isRunning = false;
         
         // Check Leaderboard logic first (Only for Single Player)

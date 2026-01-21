@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="{{ url_for('chat.static', filename='css/news.css') }}">
     <script src="{{ url_for('chat.static', filename='vendor/jquery/jquery-3.5.1.min.js') }}"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 <body>
     <div class="chat-wrapper">
@@ -57,13 +58,214 @@
                     </div>
                 </div>
             </div>
+            
+            <div class="contact-nav-list">
+                <div class="contact-nav-item" onclick="showFriendNotifications()" style="cursor: pointer; padding: 12px 16px; font-size: 14px; display: flex; align-items: center; justify-content: space-between; background: #161b22; border: 1px solid #30363d; border-radius: 8px; margin: 10px 12px;">
+                    <span>好友通知</span>
+                    <i class="fas fa-chevron-right"></i>
+                </div>
+                <div class="contact-nav-item" style="padding: 12px 16px; font-size: 14px; display: flex; align-items: center; justify-content: space-between; background: #161b22; border: 1px solid #30363d; border-radius: 8px; margin: 10px 12px;">
+                    <span>群通知</span>
+                    <i class="fas fa-chevron-right"></i>
+                </div>
+            </div>
+
+            <div class="contact-tabs">
+                <div class="contact-tab active" onclick="switchContactTab('friend')">好友</div>
+                <div class="contact-tab" onclick="switchContactTab('group')">群聊</div>
+            </div>
+
+            <div class="contact-list" id="friendListPanel">
+            </div>
+
+            <div class="contact-list" id="groupListPanel" style="display: none;">
+                <!-- Groups will be loaded dynamically -->
+            </div>
+        </div>
+
+        <!-- Sidebar (Profile) -->
+        <div class="sidebar" id="profileSidebar" style="display: none;">
+             <div class="sidebar-header">
+                <div style="font-weight: bold; font-size: 18px;">个人信息</div>
+            </div>
+            <div class="profile-container" style="padding: 20px; display: flex; flex-direction: column; align-items: center;">
+                <div class="profile-avatar" style="margin-bottom: 20px;">
+                    {% if avatar %}
+                    <img src="{{ avatar }}" class="avatar-img-large" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover;">
+                    {% else %}
+                    <i class="fas fa-user-circle" style="font-size: 80px; color: #58a6ff;"></i>
+                    {% endif %}
+                </div>
+                <div class="profile-info-item" style="width: 100%; margin-bottom: 15px; padding: 10px; background: #21262d; border-radius: 6px;">
+                    <div class="label" style="font-size: 14px; color: #e6edf3; margin-bottom: 5px; font-weight: bold;">昵称</div>
+                    <div class="value" style="font-size: 16px; color: #c9d1d9;">{{ user }}</div>
+            
+        <!-- Game Interface -->
+        <div class="game-interface" id="gameInterface" style="display: none; flex: 1; flex-direction: column; background: #0d1117;">
+             <div class="chat-top-bar">
+                <div style="font-weight: bold;">游戏中心</div>
+            </div>
+            <div style="flex: 1; display: flex; justify-content: center; align-items: center; color: #8b949e; flex-direction: column;">
+                <i class="fas fa-gamepad" style="font-size: 48px; margin-bottom: 20px;"></i>
+                <h3>游戏模块开发中...</h3>
+                <p>这里将集成精彩的游戏内容</p>
+            </div>
+        </div>
+
+        <!-- Friend Interface -->
+        <div class="friend-interface" id="friendInterface" style="display: none; flex: 1; flex-direction: column; background: #0d1117;">
+             <div class="chat-top-bar">
+                <div style="font-weight: bold;">好友列表</div>
+            </div>
+            <div style="flex: 1; display: flex; justify-content: center; align-items: center; color: #8b949e; flex-direction: column;">
+                <i class="fas fa-user-friends" style="font-size: 48px; margin-bottom: 20px;"></i>
+                <h3>好友功能即将上线</h3>
+            </div>
+        </div>
+    </div>
+
+    <!-- Weather Video Overlay -->
+    <div id="weatherOverlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 9999; display: none; pointer-events: none;">
+        <video id="weatherVideo" style="width: 100%; height: 100%; object-fit: cover;" muted></video>
+    </div>
+                <div class="profile-info-item" style="width: 100%; margin-bottom: 15px; padding: 10px; background: #21262d; border-radius: 6px;">
+                    <div class="label" style="font-size: 14px; color: #e6edf3; margin-bottom: 5px; font-weight: bold;">账号</div>
+                    <div class="value" style="font-size: 16px; color: #c9d1d9;">{{ username }}</div>
+                </div>
+                <div style="margin-top: 20px; width: 100%;">
+                    <button class="btn-login" onclick="openEditProfile()" style="width: 100%;">修改信息</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar (Settings) -->
+        <div class="sidebar" id="settingsSidebar" style="display: none;">
+            <div class="sidebar-header">
+                <div style="font-weight: bold; font-size: 18px;">设置</div>
+            </div>
+            <div class="settings-list">
+                <div class="setting-item">
+                    <span class="setting-label">新消息提示音</span>
+                    <label class="switch">
+                        <input type="checkbox" id="toggleMsgSound" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="setting-item">
+                    <span class="setting-label">好友上线提示音</span>
+                    <label class="switch">
+                        <input type="checkbox" id="toggleUserSound" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="setting-item">
+                    <span class="setting-label">发送消息提示音</span>
+                    <label class="switch">
+                        <input type="checkbox" id="toggleSelfSound" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Edit Profile Sidebar -->
+        <div class="sidebar" id="editProfileSidebar" style="display: none; z-index: 1002; position: absolute; left: 311px; top: 0; bottom: 0; box-shadow: 4px 0 24px rgba(0,0,0,0.5);">
+            <div class="sidebar-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <div style="font-weight: bold; font-size: 18px;">修改信息</div>
+                <i class="fas fa-times close-sidebar" onclick="closeEditProfile()"></i>
+            </div>
+            <div class="profile-container" style="padding: 20px; display: flex; flex-direction: column; align-items: center;">
+                <div class="profile-avatar-edit" onclick="document.getElementById('avatarUpload').click()" style="position: relative; cursor: pointer; margin-bottom: 20px;">
+                    {% if avatar %}
+                    <img id="avatarPreview" src="{{ avatar }}" style="display: block; width: 80px; height: 80px; border-radius: 50%; object-fit: cover;">
+                    <i id="avatarPlaceholder" class="fas fa-camera" style="display: none; font-size: 40px; color: #8b949e; background: #21262d; padding: 20px; border-radius: 50%;"></i>
+                    {% else %}
+                    <img id="avatarPreview" src="" style="display: none; width: 80px; height: 80px; border-radius: 50%; object-fit: cover;">
+                    <i id="avatarPlaceholder" class="fas fa-camera" style="display: block; font-size: 40px; color: #8b949e; background: #21262d; padding: 20px; border-radius: 50%;"></i>
+                    {% endif %}
+                    <div class="avatar-overlay" style="position: absolute; bottom: 0; right: 0; background: #58a6ff; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
+                        <i class="fas fa-pen" style="font-size: 12px; color: white;"></i>
+                    </div>
+                </div>
+                <input type="file" id="avatarUpload" style="display: none;" accept="image/*" onchange="previewAvatar(this)">
+                
+                <div class="form-group" style="width: 100%; margin-top: 20px;">
+                    <label style="color: #8b949e; margin-bottom: 5px; display: block;">昵称</label>
+                    <input type="text" id="editNickname" class="input-box" value="{{ user }}" style="background: #0d1117; border: 1px solid #30363d; padding: 10px; height: 40px; border-radius: 6px; width: 100%; color: #ffffff; font-size: 16px; font-weight: bold;">
+                </div>
+                
+                <button class="btn-login" onclick="saveProfile()" style="margin-top: 30px; width: 100%;">保存修改</button>
+            </div>
         </div>
         
         <!-- Main Chat -->
         <div class="main-chat">
-            <div class="chat-top-bar">
-                <div style="font-weight: bold;">{{ server }}</div>
+            <!-- Friend Profile Modal (Overlay) -->
+            <div id="friendProfileModal" class="friend-profile-modal" style="display: none;">
+                <div class="friend-profile-content" style="position: relative;">
+                    <i class="fas fa-times" onclick="$('#friendProfileModal').hide(); $('#chatMainContent').css('display', 'flex');" style="position: absolute; top: 15px; right: 15px; cursor: pointer; color: #8b949e; font-size: 18px;"></i>
+                    <div class="fp-header">
+                        <div class="fp-avatar" id="fpAvatarContainer">
+                            <!-- Injected by JS -->
+                        </div>
+                        <div class="fp-info">
+                            <div class="fp-name" id="fpNickname"></div>
+                            <div class="fp-id" id="fpUsername"></div>
+                            <div class="fp-status">
+                                <span class="status-dot offline" id="fpStatusDot"></span> 
+                                <span id="fpStatusText">离线</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="width: 100%; margin-bottom: 25px; padding: 15px; background: #161b22; border-radius: 8px; border: 1px solid #30363d;">
+                        <div style="color: #8b949e; font-size: 12px; margin-bottom: 5px;">备注名</div>
+                        <div id="fpRemark" style="color: #e6edf3; font-size: 14px; min-height: 20px;"></div>
+                    </div>
+
+                    <div class="fp-actions">
+                        <button class="btn-primary" id="fpSendMsgBtn">
+                            <i class="fas fa-comment-dots"></i> 发消息
+                        </button>
+                        <button style="background: #21262d; color: #c9d1d9; border: 1px solid #30363d;" onclick="openShareModal()">
+                            <i class="fas fa-share-square"></i> 分享名片
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Share Friend Modal -->
+            <div id="shareModal" class="friend-profile-modal" style="display: none; z-index: 1100; background: rgba(1, 4, 9, 0.9);">
+                <div class="friend-profile-content" style="width: 350px;">
+                    <div style="width: 100%; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h3 style="margin: 0; color: #e6edf3; font-size: 16px;">选择分享对象</h3>
+                        <i class="fas fa-times" onclick="$('#shareModal').hide()" style="cursor: pointer; color: #8b949e;"></i>
+                    </div>
+                    <div id="shareList" style="width: 100%; height: 300px; overflow-y: auto; margin-bottom: 20px; border: 1px solid #30363d; border-radius: 6px; background: #0d1117;">
+                        <!-- List populated by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <div id="friendNotificationsPanel" style="display: none; flex-direction: column; height: 100%; background: #0d1117;">
+                <div class="chat-top-bar" style="border-bottom: 1px solid #30363d;">
+                    <div style="font-weight: bold;">好友通知</div>
+                </div>
+                <div id="notificationsList" style="flex: 1; overflow-y: auto; padding: 20px;">
+                    <!-- Content injected by JS -->
+                </div>
+            </div>
+
+            <div id="chatMainContent" style="display: flex; flex-direction: column; height: 100%;">
+                <div class="chat-top-bar" style="height: auto; min-height: 50px; padding: 10px 20px;">
+                <div style="display: flex; flex-direction: column; justify-content: center;">
+                    <div style="font-weight: bold; font-size: 16px;" id="chatTitle">{{ server }}</div>
+                    <div style="font-size: 12px; color: #8b949e; cursor: pointer; display: none; margin-top: 2px;" id="chatRoomIdContainer" onclick="copyRoomId()" title="点击复制群号">
+                        群号: <span id="currentRoomId"></span> <i class="far fa-copy" style="margin-left: 5px;"></i>
+                    </div>
+                </div>
                 <div>
+                    <i class="fas fa-ellipsis-h" style="color: #8b949e; cursor: pointer;" onclick="toggleUserSidebar()" title="在线用户"></i>
                     <i class="fas fa-ellipsis-h" style="color: #8b949e; cursor: pointer;" onclick="toggleUserSidebar()" title="在线用户"></i>
                 </div>
             </div>
@@ -79,16 +281,46 @@
                     <div class="emoji-grid" id="emojiGrid"></div>
                 </div>
 
-                <div class="toolbar">
+                <!-- Voice Input Panel -->
+                <div class="voice-input-panel" id="voiceInputPanel" style="display: none;">
+                    <div class="voice-timer" id="voiceTimer">0:00</div>
+                    <div class="voice-icon-wrapper">
+                        <div class="voice-ripple"></div>
+                        <i class="fas fa-microphone" id="voiceMainIcon"></i>
+                    </div>
+                    <div class="voice-instruction" id="voiceInstruction">按住空格键开始说话，按 Esc 键或点击<span class="voice-action-link" onclick="exitVoiceMode()">退出</span></div>
+                </div>
+
+                <!-- Emoji Panel -->
+                <div class="emoji-panel" id="emojiPanel" style="display: none;">
+                    <input type="file" id="stickerFileInput" style="display: none;" accept="image/png, image/jpeg, image/gif">
+                    
+                    <div class="emoji-body">
+                        <div class="emoji-grid" id="emojiGrid"></div>
+                        <div class="sticker-grid" id="stickerGrid" style="display: none;"></div>
+                    </div>
+                    <div class="emoji-footer">
+                        <div class="emoji-tab active" title="Emoji" onclick="switchEmojiTab('emoji')">
+                            <i class="far fa-smile" id="emojiBtn" title="表情"></i>
+                        </div>
+                        <div class="emoji-tab" title="Stickers" onclick="switchEmojiTab('sticker')">
+                            <i class="fas fa-icons"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="toolbar" id="chatToolbar">
                     <i class="far fa-smile" id="emojiBtn" title="表情"></i>
-                    <i class="far fa-folder"></i>
-                    <i class="fas fa-cut"></i>
+                    <i class="far fa-folder" id="fileBtn" title="发送文件"></i>
+                    <input type="file" id="fileInput" style="display: none;">
+                    <i class="fas fa-microphone" id="voiceBtn" title="语音输入"></i>
                     <i class="far fa-comment-dots"></i>
                 </div>
                 <textarea class="input-box" id="messageInput" placeholder="输入消息..."></textarea>
-                <div style="text-align: right; margin-top: 5px;">
+                <div style="text-align: right; margin-top: 5px;" id="sendBtnContainer">
                     <button class="btn-login" id="sendBtn" style="width: auto; padding: 5px 20px; font-size: 14px;">发送</button>
                 </div>
+            </div>
             </div>
         </div>
     </div>
@@ -145,9 +377,45 @@
     <audio id="audioUserComing" src="{{ url_for('chat.static', filename='mp3/usercoming.mp3') }}" preload="auto"></audio>
     <audio id="audioUserSendMsg" src="{{ url_for('chat.static', filename='mp3/usersendmsg.mp3') }}" preload="auto"></audio>
 
+    <!-- User Sidebar -->
+    <div class="user-sidebar" id="userSidebar">
+        <div class="user-sidebar-header">
+            <span>在线用户(<span id="userCount">0</span>)</span>
+            <i class="fas fa-times close-sidebar" onclick="toggleUserSidebar()"></i>
+        </div>
+        <div class="user-list" id="userList">
+            <!-- User items injected here -->
+        </div>
+    </div>
+
+    <!-- Audio Elements -->
+    <audio id="audioMsgComing" src="{{ url_for('chat.static', filename='mp3/msgcoming.mp3') }}" preload="auto"></audio>
+    <audio id="audioUserComing" src="{{ url_for('chat.static', filename='mp3/usercoming.mp3') }}" preload="auto"></audio>
+    <audio id="audioUserSendMsg" src="{{ url_for('chat.static', filename='mp3/usersendmsg.mp3') }}" preload="auto"></audio>
+
+    <!-- Create Group Modal -->
+    <div id="createGroupModal" class="modal" style="display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); align-items: center; justify-content: center;">
+        <div class="modal-content" style="background-color: #161b22; margin: auto; padding: 20px; border: 1px solid #30363d; width: 300px; border-radius: 6px; color: #c9d1d9;">
+            <h3 style="margin-top: 0; font-size: 18px; border-bottom: 1px solid #30363d; padding-bottom: 10px; margin-bottom: 15px;">创建群聊</h3>
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px;">群聊名称</label>
+                <input type="text" id="newGroupName" class="input-box" style="width: 100%; background: #0d1117; border: 1px solid #30363d; color: #fff; padding: 8px; border-radius: 4px;" placeholder="请输入群聊名称">
+            </div>
+            <div style="text-align: right; margin-top: 20px;">
+                <button class="btn-login" style="background-color: #30363d; margin-right: 10px; border: none; padding: 6px 12px; border-radius: 4px; color: #c9d1d9; cursor: pointer;" onclick="closeCreateGroupModal()">取消</button>
+                <button class="btn-login" style="background-color: #238636; border: none; padding: 6px 12px; border-radius: 4px; color: #fff; cursor: pointer;" onclick="confirmCreateGroupDirect()">创建</button>
+            </div>
+        </div>
+    </div>
+
+
+
+
     <script>
-        const user = "{{ user }}";
-        const room = "{{ server }}";
+        const currentUser = "{{ user }}";
+        const currentUsername = "{{ username }}";
+        const currentUserId = "{{ current_user_obj_id }}"; // Need to pass this from route or fetch
+        let currentRoom = "{{ server }}";
         // Construct WS URL
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = `${protocol}//${window.location.host}/chat/ws`;
@@ -205,24 +473,220 @@
                 }
             }
         }
+        let previousUserList = new Set();
+        let isFirstLoad = true;
+        
+        // Chat List Management
+        let chatList = []; // Array of {id, name, type, avatar, roomId}
 
-        function connect() {
+
+        function createGroupDirect() {
+            $('.add-menu-dropdown').hide();
+            $('#newGroupName').val('');
+            $('#createGroupModal').css('display', 'flex');
+        }
+
+        function closeCreateGroupModal() {
+            $('#createGroupModal').hide();
+        }
+
+        function confirmCreateGroupDirect() {
+            const groupName = $('#newGroupName').val().trim();
+            if (!groupName) {
+                alert('请输入群聊名称');
+                return;
+            }
+            
+            $.ajax({
+                url: "{{ url_for('chat.create_group') }}",
+                type: 'POST',
+                data: { name: groupName },
+                success: function(response) {
+                    if (response.success) {
+                        closeCreateGroupModal();
+                        alert('群聊创建成功');
+                        if (typeof fetchChatList === 'function') {
+                            fetchChatList();
+                        } else {
+                            location.reload(); 
+                        }
+                    } else {
+                        alert('创建失败: ' + response.message);
+                    }
+                },
+                error: function() {
+                    alert('服务器错误');
+                }
+            });
+        }
+
+        const settings = {
+            msgSound: localStorage.getItem('msgSound') !== 'false',
+            userSound: localStorage.getItem('userSound') !== 'false',
+            selfSound: localStorage.getItem('selfSound') !== 'false'
+        };
+
+        // Initialize checkboxes
+        $('#toggleMsgSound').prop('checked', settings.msgSound);
+        $('#toggleUserSound').prop('checked', settings.userSound);
+        $('#toggleSelfSound').prop('checked', settings.selfSound);
+
+        // Settings event listeners
+        $('#toggleMsgSound').change(function() {
+            settings.msgSound = this.checked;
+            localStorage.setItem('msgSound', this.checked);
+        });
+        $('#toggleUserSound').change(function() {
+            settings.userSound = this.checked;
+            localStorage.setItem('userSound', this.checked);
+        });
+        $('#toggleSelfSound').change(function() {
+            settings.selfSound = this.checked;
+            localStorage.setItem('selfSound', this.checked);
+        });
+
+        function playSound(type) {
+            let audioId = '';
+            let shouldPlay = false;
+
+            if (type === 'msg' && settings.msgSound) {
+                audioId = 'audioMsgComing';
+                shouldPlay = true;
+            } else if (type === 'user' && settings.userSound) {
+                audioId = 'audioUserComing';
+                shouldPlay = true;
+            } else if (type === 'self' && settings.selfSound) {
+                audioId = 'audioUserSendMsg';
+                shouldPlay = true;
+            }
+
+            if (shouldPlay && audioId) {
+                const audio = document.getElementById(audioId);
+                if (audio) {
+                    audio.currentTime = 0;
+                    audio.play().catch(e => console.log("Audio play failed:", e));
+                }
+            }
+        }
+
+        let currentlyPlaying = null;
+        let currentAudio = null;
+
+        function playVoice(element, url) {
+            if (currentAudio) {
+                // If another audio is playing, pause it and reset its icon
+                if (currentAudio.src !== url) {
+                    currentAudio.pause();
+                    if (currentlyPlaying) {
+                        currentlyPlaying.classList.remove('playing');
+                    }
+                }
+            }
+
+            const isPlaying = element.classList.contains('playing');
+
+            if (isPlaying) {
+                // Pause the current audio
+                if (currentAudio) {
+                    currentAudio.pause();
+                }
+                element.classList.remove('playing');
+            } else {
+                // Play the new audio
+                if (!currentAudio || currentAudio.src !== url) {
+                    currentAudio = new Audio(url);
+                }
+                
+                currentAudio.play().then(() => {
+                    // If there was a previously playing item, reset it
+                    if (currentlyPlaying && currentlyPlaying !== element) {
+                        currentlyPlaying.classList.remove('playing');
+                    }
+                    
+                    element.classList.add('playing');
+                    currentlyPlaying = element;
+
+                    currentAudio.onended = () => {
+                        element.classList.remove('playing');
+                        currentlyPlaying = null;
+                        currentAudio = null;
+                    };
+                }).catch(e => {
+                    console.error("Audio play failed:", e);
+                    // Clean up if play fails
+                    if (currentlyPlaying) {
+                        currentlyPlaying.classList.remove('playing');
+                    }
+                });
+            }
+        }
+
+        function connect(roomName) {
+            if (ws) {
+                // Prevent recursive reconnect on intentional close
+                ws.onclose = null;
+                ws.close();
+            }
+            
+            // Update current room global
+            if (roomName) {
+                currentRoom = roomName;
+            }
+            
             ws = new WebSocket(wsUrl);
             
             ws.onopen = function() {
-                console.log("Connected");
+                console.log("Connected to " + currentRoom);
                 $('.system-message').last().text('已连接到服务器');
                 // Send join message
                 ws.send(JSON.stringify({
-                    type: 'join',
-                    user: user,
-                    room: room
+                    'type': 'join',
+                    'user': currentUser,
+                    'room': currentRoom
                 }));
             };
             
             ws.onmessage = function(event) {
                 const msg = JSON.parse(event.data);
                 if (msg.type === 'users') {
+                    updateUserList(msg.users, msg.count);
+                } else if (msg.type === 'profile_update') {
+                     // Update current user profile panel
+                     if (msg.username === "{{ username }}") {
+                         $('.profile-info-item .value').first().text(msg.nickname);
+                         if (msg.avatar) {
+                             if ($('.profile-avatar img').length > 0) {
+                                 $('.profile-avatar img').attr('src', msg.avatar);
+                             } else {
+                                 $('.profile-avatar i').replaceWith('<img src="' + msg.avatar + '" class="avatar-img-large" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover;">');
+                             }
+                             $('#avatarPreview').attr('src', msg.avatar).show();
+                             $('#avatarPlaceholder').hide();
+                         }
+                     }
+                     
+                     // Sync avatars in chat history for all users
+                     if (msg.avatar) {
+                        // Update existing images
+                        $(`img.user-avatar-${msg.username}`).attr('src', msg.avatar);
+                        
+                        // Replace div placeholders with images
+                        $(`div.user-avatar-${msg.username}`).each(function() {
+                             const marginL = $(this).css('marginLeft');
+                             const marginR = $(this).css('marginRight');
+                             $(this).replaceWith(`<img src="${msg.avatar}" class="avatar-img user-avatar-${msg.username}" data-username="${msg.username}" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover; margin-left: ${marginL}; margin-right: ${marginR};">`);
+                        });
+                     }
+                } else if (msg.type === 'stream_start') {
+                    startStreamMessage(msg);
+                } else if (msg.type === 'stream_chunk') {
+                    appendStreamChunk(msg);
+                } else if (msg.type === 'stream_end') {
+                    endStreamMessage(msg);
+                } else if (msg.type === 'weather') {
+                    displayWeather(msg);
+                } else {
+                    if (msg.type === 'users') {
                     updateUserList(msg.users, msg.count);
                 } else if (msg.type === 'stream_start') {
                     startStreamMessage(msg);
@@ -234,6 +698,7 @@
                     displayWeather(msg);
                 } else {
                     appendMessage(msg);
+                }
                 }
             };
             
@@ -249,6 +714,291 @@
         }
         
         connect();
+        
+        let currentStreamId = null;
+        let currentStreamContent = "";
+
+        function startStreamMessage(msg) {
+            currentStreamId = 'stream-' + Date.now();
+            currentStreamContent = "";
+            const area = $('#messageArea');
+            const avatar = msg.user ? msg.user[0].toUpperCase() : '?';
+            
+            playSound('msg');
+
+            const html = `
+                <div class="message other" id="${currentStreamId}">
+                    <div class="avatar" style="width: 32px; height: 32px; font-size: 12px; background: #238636">${avatar}</div>
+                    <div>
+                        <div class="message-meta" style="text-align: left">${msg.user}</div>
+                        <div class="message-content markdown-body">
+                            <span class="typing-indicator">...</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            area.append(html);
+            area.scrollTop(area[0].scrollHeight);
+        }
+
+        function appendStreamChunk(msg) {
+            if (currentStreamId) {
+                currentStreamContent += msg.content;
+                const contentDiv = $(`#${currentStreamId} .message-content`);
+                try {
+                    contentDiv.html(marked.parse(currentStreamContent));
+                } catch(e) {
+                    contentDiv.text(currentStreamContent);
+                }
+                const area = $('#messageArea');
+                area.scrollTop(area[0].scrollHeight);
+            }
+        }
+
+        function endStreamMessage(msg) {
+            currentStreamId = null;
+            currentStreamContent = "";
+        }
+
+        function displayWeather(msg) {
+            // 1. Play Video
+            const data = msg.data;
+            // Try to find weather condition from data. 
+            // We assume backend returns raw JSON. We need to extract weather type.
+            // Adjust this based on actual API response structure.
+            // Example structure guess: { data: { type: '晴', wendu: '25', ... } }
+            
+            let weatherType = '晴';
+            let city = '未知';
+            let temp = '';
+            let wind = '';
+            
+            // Heuristic parsing
+            if (data.data) {
+                if (data.data.type) weatherType = data.data.type;
+                if (data.data.city) city = data.data.city;
+                if (data.data.wendu) temp = data.data.wendu;
+                if (data.data.fengxiang) wind = data.data.fengxiang;
+            } else if (data.weather) {
+                weatherType = data.weather;
+            }
+            
+            // Map to video file
+            let videoFile = 'sun.mp4';
+            if (weatherType.includes('雨')) videoFile = 'rain.mp4';
+            else if (weatherType.includes('雪')) videoFile = 'snow.mp4';
+            else if (weatherType.includes('雷')) videoFile = 'thunder.mp4';
+            else if (weatherType.includes('风')) videoFile = 'wind.mp4';
+            else if (weatherType.includes('阴') || weatherType.includes('云')) videoFile = 'sun.mp4'; // No cloud video provided, use sun or maybe wind?
+
+            const videoPath = `{{ url_for('chat.static', filename='weather/') }}${videoFile}`;
+            const overlay = $('#weatherOverlay');
+            const video = $('#weatherVideo');
+            
+            video.attr('src', videoPath);
+            overlay.fadeIn();
+            video[0].play();
+            
+            // Hide after video ends or 5 seconds
+            video.on('ended', function() {
+                overlay.fadeOut();
+            });
+            // Fallback if no ended event or loop
+            setTimeout(() => {
+                overlay.fadeOut();
+            }, 8000);
+
+            // 2. Display Card
+            const area = $('#messageArea');
+            const html = `
+                <div class="message other">
+                     <div class="avatar" style="width: 32px; height: 32px; font-size: 12px; background: #e6a23c">天</div>
+                     <div>
+                        <div class="message-meta">小天气</div>
+                        <div class="message-content weather-card">
+                            <div class="weather-header">
+                                <span class="weather-city">${city}</span>
+                                <span class="weather-time">${msg.timestamp}</span>
+                            </div>
+                            <div class="weather-main">
+                                <div class="weather-icon">
+                                    <i class="fas ${getWeatherIcon(weatherType)}"></i>
+                                </div>
+                                <div class="weather-temp">${temp}°C</div>
+                            </div>
+                            <div class="weather-details">
+                                <div>${weatherType}</div>
+                                <div>${wind}</div>
+                            </div>
+                        </div>
+                     </div>
+                </div>
+            `;
+            area.append(html);
+            area.scrollTop(area[0].scrollHeight);
+            playSound('msg');
+        }
+
+        function getWeatherIcon(type) {
+            if (type.includes('雨')) return 'fa-cloud-rain';
+            if (type.includes('雪')) return 'fa-snowflake';
+            if (type.includes('雷')) return 'fa-bolt';
+            if (type.includes('风')) return 'fa-wind';
+            if (type.includes('晴')) return 'fa-sun';
+            if (type.includes('云')) return 'fa-cloud';
+            return 'fa-sun';
+        }
+
+        function renderWeatherCard(msg, data) {
+            let weatherType = '晴';
+            let city = '未知';
+            let temp = '';
+            let wind = '';
+            
+            if (data.data) {
+                if (data.data.type) weatherType = data.data.type;
+                if (data.data.city) city = data.data.city;
+                if (data.data.wendu) temp = data.data.wendu;
+                if (data.data.fengxiang) wind = data.data.fengxiang;
+            } else if (data.weather) {
+                weatherType = data.weather;
+            }
+            
+            return `
+                <div class="message other">
+                     <div class="avatar" style="width: 32px; height: 32px; font-size: 12px; background: #e6a23c">天</div>
+                     <div>
+                        <div class="message-meta">小天气</div>
+                        <div class="message-content weather-card">
+                            <div class="weather-header">
+                                <span class="weather-city">${city}</span>
+                                <span class="weather-time">${msg.timestamp}</span>
+                            </div>
+                            <div class="weather-main">
+                                <div class="weather-icon">
+                                    <i class="fas ${getWeatherIcon(weatherType)}"></i>
+                                </div>
+                                <div class="weather-temp">${temp}°C</div>
+                            </div>
+                            <div class="weather-details">
+                                <div>${weatherType}</div>
+                                <div>${wind}</div>
+                            </div>
+                        </div>
+                     </div>
+                </div>
+            `;
+        }
+
+        function renderMusicGift(msg, data, specialPayload) {
+            const musicData = specialPayload.data.data || specialPayload.data; // Handle potential nesting
+            const cover = musicData.cover || 'https://via.placeholder.com/150';
+            const title = musicData.name || '未知歌曲';
+            const artist = musicData.artistsname || '未知歌手';
+            const url = musicData.url || '';
+            const uniqueId = 'music-' + Date.now() + Math.random().toString(36).substr(2, 9);
+
+            return `
+                <div class="message other">
+                    <div class="avatar" style="width: 32px; height: 32px; font-size: 12px; background: #d9534f"><i class="fas fa-music"></i></div>
+                    <div>
+                        <div class="message-meta">小音乐</div>
+                        <div class="music-gift" onclick="openMusicPlayer('${uniqueId}', '${cover}', '${title}', '${artist}', '${url}', this)">
+                            <div class="music-gift-icon"></div>
+                            <div class="music-gift-content">
+                                <div class="music-gift-title">送你一首《${title}》</div>
+                                <div class="music-gift-desc">点击领取音乐包</div>
+                            </div>
+                        </div>
+                        <div id="${uniqueId}" style="display:none;"></div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderMusicPlayerHtml(cover, title, artist, url) {
+             return `
+                <div class="music-card">
+                    <div class="music-card-cover" style="background-image: url('${cover}')"></div>
+                    <div class="music-card-info">
+                        <div class="music-card-title">${title}</div>
+                        <div class="music-card-artist">${artist}</div>
+                    </div>
+                    <div class="music-card-controls">
+                        <div class="music-play-btn" onclick="togglePlay(this, '${url}')">
+                            <i class="fas fa-play"></i>
+                        </div>
+                    </div>
+                    <audio src="${url}" onended="resetPlayBtn(this)"></audio>
+                </div>
+            `;
+        }
+
+        window.openMusicPlayer = function(id, cover, title, artist, url, element) {
+            // Replace Gift with Player
+            const container = document.getElementById(id);
+            if (container) {
+                container.innerHTML = renderMusicPlayerHtml(cover, title, artist, url);
+                container.style.display = 'block';
+                element.style.display = 'none'; // Hide gift
+            }
+        };
+
+        window.togglePlay = function(btn, url) {
+            const container = btn.closest('.music-card');
+            const audio = container.querySelector('audio');
+            const icon = btn.querySelector('i');
+            
+            // Pause all other audios
+            document.querySelectorAll('audio').forEach(a => {
+                if (a !== audio) {
+                    a.pause();
+                    // Reset other buttons
+                    const otherBtn = a.closest('.music-card')?.querySelector('.music-play-btn i');
+                    if (otherBtn) {
+                        otherBtn.className = 'fas fa-play';
+                    }
+                }
+            });
+
+            if (audio.paused) {
+                audio.play();
+                icon.className = 'fas fa-pause';
+            } else {
+                audio.pause();
+                icon.className = 'fas fa-play';
+            }
+        };
+
+        window.resetPlayBtn = function(audio) {
+            const btn = audio.closest('.music-card').querySelector('.music-play-btn i');
+            if (btn) btn.className = 'fas fa-play';
+        };
+
+        function renderMusicPrivate(msg, data, specialPayload) {
+            // Only render if target matches current user
+            if (specialPayload.target_user !== user) {
+                // Return empty string or hidden div
+                 return '';
+            }
+
+            const musicData = specialPayload.data.data || specialPayload.data;
+            const cover = musicData.cover || 'https://via.placeholder.com/150';
+            const title = musicData.name || '未知歌曲';
+            const artist = musicData.artistsname || '未知歌手';
+            const url = musicData.url || '';
+
+            return `
+                <div class="message other">
+                    <div class="avatar" style="width: 32px; height: 32px; font-size: 12px; background: #6f42c1"><i class="fas fa-headphones"></i></div>
+                    <div>
+                        <div class="message-meta">小音乐 (私享)</div>
+                        ${renderMusicPlayerHtml(cover, title, artist, url)}
+                    </div>
+                </div>
+            `;
+        }
+
         
         let currentStreamId = null;
         let currentStreamContent = "";
@@ -867,6 +1617,10 @@
                 area.append(html);
                 area.scrollTop(area[0].scrollHeight);
             }
+            if (html) {
+                area.append(html);
+                area.scrollTop(area[0].scrollHeight);
+            }
         }
         
         $('#sendBtn').click(sendMessage);
@@ -1003,6 +1757,1295 @@
                 emojiPanel.style.display = 'none';
             }
         });
+        
+        function toggleUserSidebar() {
+            $('.user-sidebar').toggleClass('active');
+            if ($('.user-sidebar').hasClass('active')) {
+                $('.settings-sidebar').removeClass('active');
+            }
+        }
+
+        // Toggle Add Menu
+        function toggleAddMenu(btn, event) {
+            if (event) {
+                event.stopPropagation();
+            }
+            const menu = $(btn).siblings('.add-menu-dropdown');
+            
+            // Close other open menus
+            $('.add-menu-dropdown').not(menu).hide();
+            
+            if (menu.is(':hidden')) {
+                menu.fadeIn(100);
+            } else {
+                menu.fadeOut(100);
+            }
+        }
+
+        // Close menu when clicking outside
+        $(document).click(function() {
+            $('.add-menu-dropdown').fadeOut(100);
+        });
+
+
+
+        function switchTab(element, tabName) {
+            // Remove active from all nav items
+            $('.main-nav-item').removeClass('active');
+            // Add active to clicked item
+            $(element).addClass('active');
+
+            // Hide edit profile sidebar
+            if (typeof closeEditProfile === 'function') {
+                closeEditProfile();
+            } else {
+                $('#editProfileSidebar').hide();
+            }
+            
+            // Hide all sidebars first
+            $('#chatSidebar').hide();
+            $('#contactsSidebar').hide();
+            $('#profileSidebar').hide();
+            $('#settingsSidebar').hide();
+
+            if (tabName === 'chat') {
+                $('#chatSidebar').show();
+            } else if (tabName === 'friend') {
+                $('#contactsSidebar').show();
+            } else if (tabName === 'settings') {
+                $('#settingsSidebar').show();
+                $('.user-sidebar').removeClass('active');
+            } else if (tabName === 'profile') {
+                $('#profileSidebar').show();
+            }
+        }
+
+        function switchContactTab(tab) {
+            $('.contact-tab').removeClass('active');
+            if (tab === 'friend') {
+                $('.contact-tab').eq(0).addClass('active');
+                $('#friendListPanel').show();
+                $('#groupListPanel').hide();
+            } else {
+                $('.contact-tab').eq(1).addClass('active');
+                $('#friendListPanel').hide();
+                $('#groupListPanel').show();
+            }
+        }
+
+        function toggleCategory(header) {
+            const content = $(header).next('.category-content');
+            
+            if (content.is(':visible')) {
+                content.slideUp(200);
+                $(header).removeClass('active');
+            } else {
+                content.slideDown(200);
+                $(header).addClass('active');
+            }
+        }
+
+        // closeSettingsSidebar removed
+
+        function updateUserList(users, count) {
+            $('#userCount').text(count);
+            const list = $('#userList');
+            list.empty();
+            
+            // Check for new users
+            const currentUserSet = new Set(users);
+            
+            if (!isFirstLoad) {
+                for (let u of currentUserSet) {
+                    if (!previousUserList.has(u) && u !== currentUser) {
+                        playSound('user');
+                        break; // Play once per update batch
+                    }
+                }
+            }
+            
+            previousUserList = currentUserSet;
+            isFirstLoad = false;
+
+            users.forEach(u => {
+                const isSelf = u === currentUser;
+                const html = `
+                    <div class="user-item">
+                        <div class="avatar" style="width: 30px; height: 30px; font-size: 12px; background: ${isSelf ? '#1f6feb' : '#238636'}">
+                            ${u[0].toUpperCase()}
+                        </div>
+                        <div class="user-name" style="${isSelf ? 'color: #58a6ff;' : ''}">
+                            ${u} ${isSelf ? '(我)' : ''}
+                        </div>
+                    </div>
+                `;
+                list.append(html);
+            });
+        }
+
+        // Emoji Logic
+        const emojiBtn = document.getElementById('emojiBtn');
+        const emojiPanel = document.getElementById('emojiPanel');
+        const emojiGrid = document.getElementById('emojiGrid');
+        const messageInput = document.getElementById('messageInput');
+        
+        const emojis = [
+            '😀', '😁', '😂', '🤣', '😃', '😄', '😅', '😆', '😉', '😊', '😋', '😎',
+            '😍', '😘', '🥰', '😗', '😙', '😚', '🙂', '🤗', '🤩', '🤔', '🤨', '😐',
+            '😑', '😶', '🙄', '😏', '😣', '😥', '😮', '🤐', '😯', '😪', '😫', '😴',
+            '😌', '😛', '😜', '😝', '🤤', '😒', '😓', '😔', '😕', '🙃', '🤑', '😲',
+            '☹️', '🙁', '😖', '😞', '😟', '😤', '😢', '😭', '😦', '😧', '😨', '😩',
+            '🤯', '😬', '😰', '😱', '🥵', '🥶', '😳', '🤪', '😵', '😡', '😠', '🤬',
+            '😷', '🤒', '🤕', '🤢', '🤮', '🤧', '😇', '🤠', '🤡', '🥳', '🥴', '🥺',
+            '🤥', '🤫', '🤭', '🧐', '🤓', '😈', '👿', '👹', '👺', '💀', '👻', '👽',
+            '🤖', '💩', '😺', '😸', '😹', '😻', '😼', '😽', '🙀', '😿', '😾', '👋',
+            '🤚', '🖐', '✋', '🖖', '👌', '🤏', '✌️', '🤞', '🤟', '🤘', '🤙', '👈',
+            '👉', '👆', '🖕', '👇', '☝️', '👍', '👎', '✊', '👊', '🤛', '🤜', '👏',
+            '🙌', '👐', '🤲', '🤝', '🙏', '✍️', '💅', '🤳', '💪', '🦾', '🦵', '🦿',
+            '🦶', '👂', '🦻', '👃', '🧠', '🦷', '🦴', '👀', '👁️', '👅', '👄', '💋'
+        ];
+
+        // Populate Emojis
+        emojis.forEach(emoji => {
+            const span = document.createElement('span');
+            span.className = 'emoji-item';
+            span.textContent = emoji;
+            span.onclick = function() {
+                messageInput.value += emoji;
+                messageInput.focus();
+            };
+            emojiGrid.appendChild(span);
+        });
+
+        // Switch Emoji Tab
+        function switchEmojiTab(type) {
+            $('.emoji-tab').removeClass('active');
+            if (type === 'emoji') {
+                $('.emoji-tab:first-child').addClass('active');
+                $('#emojiGrid').show();
+                $('#stickerGrid').hide();
+            } else {
+                $('.emoji-tab:last-child').addClass('active');
+                $('#emojiGrid').hide();
+                $('#stickerGrid').show();
+            }
+        }
+
+        // Populate Stickers (User Custom)
+        const stickerGrid = document.getElementById('stickerGrid');
+        const stickerFileInput = document.getElementById('stickerFileInput');
+        
+        // Handle file selection
+        stickerFileInput.onchange = function() {
+            const file = this.files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            fetch('{{ url_for("chat.upload_sticker") }}', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    renderStickers();
+                } else {
+                    alert(data.message || '上传失败');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('上传出错');
+            })
+            .finally(() => {
+                // Clear input so same file can be selected again if needed
+                stickerFileInput.value = '';
+            });
+        };
+
+        function renderStickers() {
+            // Keep the Add Button always visible/re-render it
+            stickerGrid.innerHTML = '';
+
+            // Add Button
+            const addBtn = document.createElement('div');
+            addBtn.className = 'sticker-item add-btn';
+            addBtn.innerHTML = '<i class="fas fa-plus"></i>';
+            addBtn.title = '从本地上传表情';
+            addBtn.onclick = function(e) {
+                e.stopPropagation();
+                stickerFileInput.click();
+            };
+            stickerGrid.appendChild(addBtn);
+
+            // Fetch stickers from server
+            fetch('{{ url_for("chat.get_stickers") }}')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.stickers) {
+                    data.stickers.forEach((sticker) => {
+                        const div = document.createElement('div');
+                        div.className = 'sticker-item';
+                        div.innerHTML = `<img src="${sticker.url}" style="width: 100%; height: 100%; object-fit: contain;">`;
+                        div.title = '右键点击可删除';
+                        
+                        div.onclick = function(e) {
+                            e.stopPropagation(); // Prevent panel closing
+                            if (ws.readyState === WebSocket.OPEN) {
+                                ws.send(JSON.stringify({
+                                    type: 'chat',
+                                    content: `[sticker:${sticker.url}]`
+                                }));
+                                // Optional: Close panel after sending
+                                emojiPanel.style.display = 'none';
+                            }
+                        };
+
+                        // Right click to delete
+                        div.oncontextmenu = function(e) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if(confirm("是否删除该表情?")) {
+                                fetch('{{ url_for("chat.delete_sticker") }}', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json'
+                                    },
+                                    body: JSON.stringify({ url: sticker.url })
+                                })
+                                .then(res => res.json())
+                                .then(resData => {
+                                    if (resData.success) {
+                                        renderStickers();
+                                    } else {
+                                        alert(resData.message || "删除失败");
+                                    }
+                                })
+                                .catch(err => console.error(err));
+                            }
+                        };
+                        
+                        stickerGrid.appendChild(div);
+                    });
+                }
+            })
+            .catch(err => console.error("Error fetching stickers:", err));
+        }
+
+        renderStickers();
+
+        // Toggle Panel
+        emojiBtn.onclick = function(e) {
+            e.stopPropagation();
+            if (emojiPanel.style.display === 'none') {
+                emojiPanel.style.display = 'flex';
+            } else {
+                emojiPanel.style.display = 'none';
+            }
+        };
+
+        // Close on click outside (Emoji Panel)
+        document.addEventListener('click', function(e) {
+            if (emojiPanel.style.display !== 'none' && !emojiPanel.contains(e.target) && e.target !== emojiBtn) {
+                emojiPanel.style.display = 'none';
+            }
+        });
+
+        // File Upload Logic
+        const fileBtn = document.getElementById('fileBtn');
+        const fileInput = document.getElementById('fileInput');
+
+        fileBtn.onclick = function() {
+            fileInput.click();
+        };
+
+        fileInput.onchange = function() {
+            const file = this.files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            // Using the same upload endpoint for now, or create a new one for generic files
+            // For simplicity, reusing upload_sticker but treating as generic file upload
+            // Ideally, we should have a separate endpoint or flag
+            fetch('{{ url_for("chat.upload_file") }}', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    if (ws.readyState === WebSocket.OPEN) {
+                        // Determine file type for display
+                        const isImage = file.type.startsWith('image/');
+                        const formattedSize = formatFileSize(file.size);
+                        const content = isImage 
+                            ? `[sticker:${data.url}]` // Reuse sticker format for images
+                            : `[file:${data.url}|${file.name}|${formattedSize}]`; // New format for files
+                        
+                        ws.send(JSON.stringify({
+                            type: 'chat',
+                            content: content
+                        }));
+                    }
+                } else {
+                    alert(data.message || '上传失败');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('上传出错');
+            })
+            .finally(() => {
+                fileInput.value = '';
+            });
+        };
+
+        // Helper functions for File Display
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function getFileIcon(filename) {
+            const ext = filename.split('.').pop().toLowerCase();
+            switch(ext) {
+                case 'doc': case 'docx': return 'fa-file-word';
+                case 'pdf': return 'fa-file-pdf';
+                case 'xls': case 'xlsx': return 'fa-file-excel';
+                case 'ppt': case 'pptx': return 'fa-file-powerpoint';
+                case 'zip': case 'rar': case '7z': return 'fa-file-archive';
+                case 'mp3': case 'wav': return 'fa-file-audio';
+                case 'mp4': case 'avi': return 'fa-file-video';
+                case 'txt': return 'fa-file-alt';
+                case 'jpg': case 'jpeg': case 'png': case 'gif': return 'fa-file-image';
+                default: return 'fa-file';
+            }
+        }
+
+        function downloadFile(url, filename) {
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        // Close sidebars when clicking outside
+        $(document).on('click', function(e) {
+            // User Sidebar
+            if ($('.user-sidebar').hasClass('active')) {
+                if (!$(e.target).closest('.user-sidebar').length && !$(e.target).closest('.chat-top-bar .fa-ellipsis-h').length) {
+                    $('.user-sidebar').removeClass('active');
+                }
+            }
+            
+            // Settings Sidebar logic removed
+        });
+
+        /* Voice Input Logic */
+        let mediaRecorder;
+        let audioChunks = [];
+        let isRecording = false;
+        let voiceStartTime;
+        let voiceTimerInterval;
+        let isVoiceMode = false;
+
+        const voiceBtn = document.getElementById('voiceBtn');
+        const voiceInputPanel = document.getElementById('voiceInputPanel');
+        const chatToolbar = document.getElementById('chatToolbar');
+        const sendBtnContainer = document.getElementById('sendBtnContainer');
+        const voiceTimer = document.getElementById('voiceTimer');
+        const voiceIconWrapper = document.querySelector('.voice-icon-wrapper');
+        const voiceInstruction = document.getElementById('voiceInstruction');
+
+        // Toggle Voice Mode
+        voiceBtn.onclick = function() {
+            enterVoiceMode();
+        };
+
+        function enterVoiceMode() {
+            isVoiceMode = true;
+            voiceInputPanel.style.display = 'flex';
+            resetVoiceUI();
+        }
+
+        function exitVoiceMode() {
+            isVoiceMode = false;
+            if (isRecording) {
+                cancelRecording();
+            }
+            voiceInputPanel.style.display = 'none';
+        }
+
+        function resetVoiceUI() {
+            voiceTimer.classList.remove('active');
+            voiceTimer.textContent = '0:00';
+            voiceIconWrapper.classList.remove('active');
+            voiceInstruction.innerHTML = '按住空格键开始说话，按 Esc 键或点击<span class="voice-action-link" onclick="exitVoiceMode()">退出</span>';
+        }
+
+        function setRecordingUI() {
+            voiceTimer.classList.add('active');
+            voiceIconWrapper.classList.add('active');
+            voiceInstruction.innerHTML = '松手发送，按 Esc 键或点击<span class="voice-action-link" onclick="cancelRecording()">取消发送</span>';
+        }
+
+        // Space Key Handlers
+        document.addEventListener('keydown', function(e) {
+            if (!isVoiceMode) return;
+            if (e.code === 'Space' && !isRecording && !e.repeat) {
+                e.preventDefault(); // Prevent scrolling
+                startRecording();
+            }
+            if (e.code === 'Escape') {
+                if (isRecording) {
+                    cancelRecording();
+                } else {
+                    exitVoiceMode();
+                }
+            }
+        });
+
+        document.addEventListener('keyup', function(e) {
+            if (!isVoiceMode) return;
+            if (e.code === 'Space' && isRecording) {
+                stopRecording();
+            }
+        });
+
+        function startRecording() {
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(stream => {
+                    mediaRecorder = new MediaRecorder(stream);
+                    audioChunks = [];
+                    
+                    mediaRecorder.ondataavailable = event => {
+                        audioChunks.push(event.data);
+                    };
+
+                    mediaRecorder.onstop = () => {
+                        handleRecordingStop();
+                        // Stop all tracks to release microphone
+                        stream.getTracks().forEach(track => track.stop());
+                    };
+
+                    mediaRecorder.start();
+                    isRecording = true;
+                    voiceStartTime = Date.now();
+                    
+                    // Update UI
+                    setRecordingUI();
+                    
+                    // Start Timer
+                    updateTimer();
+                    voiceTimerInterval = setInterval(updateTimer, 100);
+                })
+                .catch(err => {
+                    console.error("Error accessing microphone:", err);
+                    if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                        alert("麦克风权限被拒绝。请检查浏览器设置，允许网站访问麦克风。\n如果在 IDE 预览中无法使用，请尝试在外部浏览器(Chrome/Edge)中打开。");
+                    } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+                        alert("未检测到麦克风设备，请检查连接。");
+                    } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+                        alert("无法访问麦克风，可能被其他程序占用。");
+                    } else {
+                        alert("无法访问麦克风: " + (err.message || err.name));
+                    }
+                    isRecording = false; // Reset state
+                });
+        }
+
+        function stopRecording() {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+                isRecording = false;
+                clearInterval(voiceTimerInterval);
+                resetVoiceUI();
+            }
+        }
+
+        function cancelRecording() {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                // Remove onstop handler to prevent sending
+                mediaRecorder.onstop = null;
+                mediaRecorder.stop();
+                // Stop tracks
+                mediaRecorder.stream.getTracks().forEach(track => track.stop());
+            }
+            isRecording = false;
+            clearInterval(voiceTimerInterval);
+            resetVoiceUI();
+        }
+
+        function handleRecordingStop() {
+            const duration = Date.now() - voiceStartTime;
+            if (duration < 1000) {
+                alert("录制时间小于1秒");
+                return;
+            }
+
+            const audioBlob = new Blob(audioChunks, { type: 'audio/mp3' }); // Try mp3, though browser usually gives webm/ogg
+            // Note: MediaRecorder usually produces webm/ogg. Backend accepts mp3/mp4/wav/webm/ogg now.
+            // Let's use correct extension based on MIME type or default to webm
+            let ext = 'webm';
+            if (MediaRecorder.isTypeSupported('audio/webm')) ext = 'webm';
+            else if (MediaRecorder.isTypeSupported('audio/ogg')) ext = 'ogg';
+            else if (MediaRecorder.isTypeSupported('audio/mp4')) ext = 'm4a';
+            
+            const file = new File([audioBlob], `voice_${Date.now()}.${ext}`, { type: `audio/${ext}` });
+            uploadVoice(file, duration);
+        }
+
+        function updateTimer() {
+            const diff = Date.now() - voiceStartTime;
+            const seconds = Math.floor(diff / 1000);
+            const minutes = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            voiceTimer.textContent = `${minutes}:${secs < 10 ? '0' : ''}${secs}`;
+        }
+
+
+
+        function uploadVoice(file, durationMs) {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            fetch('{{ url_for("chat.upload_file") }}', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    if (ws.readyState === WebSocket.OPEN) {
+                        const durationSec = Math.round(durationMs / 1000);
+                        const content = `[voice:${data.url}|${durationSec}]`;
+                        
+                        ws.send(JSON.stringify({
+                            type: 'chat',
+                            content: content
+                        }));
+                    }
+                } else {
+                    alert(data.message || '发送失败');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('发送出错');
+            });
+        }
+
+        /* Edit Profile Logic */
+        function openEditProfile() {
+            // Close other sidebars
+            $('.user-sidebar').removeClass('active');
+            $('.settings-sidebar').removeClass('active');
+            $('#contactsSidebar').hide(); // Also hide contacts sidebar if open
+            $('#editProfileSidebar').fadeIn(200);
+        }
+
+        function closeEditProfile() {
+            $('#editProfileSidebar').fadeOut(200);
+        }
+
+        function previewAvatar(input) {
+            if (input.files && input.files[0]) {
+                var reader = new FileReader();
+                reader.onload = function(e) {
+                    $('#avatarPreview').attr('src', e.target.result).show();
+                    $('#avatarPlaceholder').hide();
+                }
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        function saveProfile() {
+            var formData = new FormData();
+            formData.append('nickname', $('#editNickname').val());
+            var fileInput = document.getElementById('avatarUpload');
+            if (fileInput.files[0]) {
+                formData.append('avatar', fileInput.files[0]);
+            }
+            
+            $.ajax({
+                url: "{{ url_for('chat.update_profile') }}",
+                type: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                success: function(response) {
+                    if (response.success) {
+                        alert('修改成功');
+                        closeEditProfile();
+                    } else {
+                        alert('修改失败: ' + response.message);
+                    }
+                },
+                error: function() {
+                    alert('服务器错误');
+                }
+            });
+        }
+        /* Search Friend/Group Logic */
+        let currentSearchType = 'user';
+
+        function addFriendOrGroup() {
+            $('.add-menu-dropdown').hide();
+            $('#searchModal').css('display', 'flex');
+            // Reset position
+            $('#searchModalContent').css('transform', 'translate(0px, 0px)');
+            currentTranslate = { x: 0, y: 0 };
+            $('#searchInput').focus();
+        }
+
+        /* Draggable Modal Logic */
+        let isDragging = false;
+        let currentTranslate = { x: 0, y: 0 };
+        let dragStart = { x: 0, y: 0 };
+
+        $(document).ready(function() {
+            const modalHeader = document.getElementById('searchModalHeader');
+            const modalContent = document.getElementById('searchModalContent');
+            const searchModal = document.getElementById('searchModal');
+
+            if (modalHeader && modalContent) {
+                modalHeader.addEventListener('mousedown', function(e) {
+                    isDragging = true;
+                    dragStart = {
+                        x: e.clientX - currentTranslate.x,
+                        y: e.clientY - currentTranslate.y
+                    };
+                    modalHeader.style.cursor = 'grabbing';
+                });
+
+                document.addEventListener('mousemove', function(e) {
+                    if (!isDragging) return;
+                    
+                    e.preventDefault();
+                    currentTranslate.x = e.clientX - dragStart.x;
+                    currentTranslate.y = e.clientY - dragStart.y;
+
+                    modalContent.style.transform = `translate(${currentTranslate.x}px, ${currentTranslate.y}px)`;
+                });
+
+                document.addEventListener('mouseup', function() {
+                    isDragging = false;
+                    if (modalHeader) modalHeader.style.cursor = 'move';
+                });
+            }
+
+            // Click outside to close
+            if (searchModal) {
+                searchModal.addEventListener('click', function(e) {
+                    // Check if the click target is the modal container itself (not the content)
+                    if (e.target === searchModal) {
+                        closeSearchModal();
+                    }
+                });
+            }
+        });
+
+        function closeSearchModal() {
+            $('#searchModal').hide();
+            $('#searchInput').val('');
+            $('#searchResults').html('<div class="empty-state" style="text-align: center; color: #8b949e; padding-top: 20px;">请输入关键词进行搜索</div>');
+        }
+
+        function switchSearchTab(type) {
+            currentSearchType = type;
+            $('.search-tab').css({
+                'color': '#8b949e',
+                'border-bottom-color': 'transparent'
+            });
+            
+            if (type === 'user') {
+                $('.search-tab').eq(0).css({
+                    'color': '#58a6ff',
+                    'border-bottom-color': '#58a6ff'
+                });
+                $('#searchInput').attr('placeholder', '请输入用户账号');
+            } else {
+                $('.search-tab').eq(1).css({
+                    'color': '#58a6ff',
+                    'border-bottom-color': '#58a6ff'
+                });
+                $('#searchInput').attr('placeholder', '请输入群号或群名称');
+            }
+            
+            $('#searchResults').html('<div class="empty-state" style="text-align: center; color: #8b949e; padding-top: 20px;">请输入关键词进行搜索</div>');
+        }
+
+        function performSearch() {
+            const keyword = $('#searchInput').val().trim();
+            if (!keyword) return;
+            
+            const url = currentSearchType === 'user' ? "{{ url_for('chat.search_user') }}" : "{{ url_for('chat.search_group') }}";
+            const data = currentSearchType === 'user' ? { username: keyword } : { keyword: keyword };
+            
+            $('#searchResults').html('<div style="text-align: center; color: #8b949e;">搜索中...</div>');
+            
+            $.post(url, data, function(res) {
+                if (res.success) {
+                    let html = '';
+                    if (currentSearchType === 'user') {
+                        const u = res.user;
+                        html = `
+                            <div class="result-item" style="display: flex; align-items: center; padding: 10px; background: #21262d; border-radius: 6px;">
+                                ${u.avatar ? 
+                                    `<img src="${u.avatar}" style="width: 40px; height: 40px; border-radius: 50%; margin-right: 10px; object-fit: cover;">` : 
+                                    `<div style="width: 40px; height: 40px; border-radius: 50%; margin-right: 10px; background: #58a6ff; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">${u.username[0].toUpperCase()}</div>`
+                                }
+                                <div style="flex: 1;">
+                                    <div style="color: #e6edf3; font-weight: bold;">${u.nickname || u.username}</div>
+                                    <div style="color: #8b949e; font-size: 12px;">@${u.username}</div>
+                                </div>
+                                <button onclick="sendFriendRequest(${u.id})" style="background: #1f6feb; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">加好友</button>
+                            </div>
+                        `;
+                    } else {
+                        const g = res.group;
+                        html = `
+                            <div class="result-item" style="display: flex; align-items: center; padding: 10px; background: #21262d; border-radius: 6px;">
+                                <div style="width: 40px; height: 40px; background: #58a6ff; border-radius: 6px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
+                                    <i class="fas fa-users" style="color: white;"></i>
+                                </div>
+                                <div style="flex: 1;">
+                                    <div style="color: #e6edf3; font-weight: bold;">${g.name}</div>
+                                    <div style="color: #8b949e; font-size: 12px;">${g.member_count} 人 · ID: ${g.id}</div>
+                                </div>
+                                <button onclick="sendGroupRequest(${g.id})" style="background: #1f6feb; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">加入群聊</button>
+                            </div>
+                        `;
+                    }
+                    $('#searchResults').html(html);
+                } else {
+                    $('#searchResults').html(`<div style="text-align: center; color: #ff7b72;">${res.message}</div>`);
+                }
+            }).fail(function(err) {
+                 $('#searchResults').html(`<div style="text-align: center; color: #ff7b72;">搜索失败: ${err.responseJSON ? err.responseJSON.message : '未知错误'}</div>`);
+            });
+        }
+
+        function sendFriendRequest(userId) {
+            $('#friendRequestUserId').val(userId);
+            $('#friendRequestMessage').val('');
+            $('#friendRequestRemark').val('');
+            $('#friendRequestModal').css('display', 'flex');
+        }
+
+        function closeFriendRequestModal() {
+            $('#friendRequestModal').hide();
+        }
+
+        function confirmSendFriendRequest() {
+            const userId = $('#friendRequestUserId').val();
+            const message = $('#friendRequestMessage').val();
+            const remark = $('#friendRequestRemark').val();
+            
+            $.post("{{ url_for('chat.send_friend_request') }}", { 
+                user_id: userId,
+                hello_message: message,
+                remark: remark
+            }, function(res) {
+                if (res.success) {
+                    alert(res.message);
+                    closeFriendRequestModal();
+                    closeSearchModal();
+                } else {
+                    alert(res.message);
+                }
+            });
+        }
+
+        function sendGroupRequest(groupId) {
+            $.post("{{ url_for('chat.join_group_by_id') }}", { group_id: groupId }, function(res) {
+                if (res.success) {
+                    alert('加入成功！');
+                    closeSearchModal();
+                    location.reload();
+                } else {
+                    alert(res.message);
+                }
+            });
+        }
+
+        // Friend Notifications Logic
+        function showFriendNotifications() {
+            $('#chatMainContent').hide();
+            $('#friendNotificationsPanel').css('display', 'flex');
+            fetchFriendRequests();
+        }
+
+        function fetchFriendRequests() {
+            $.get("{{ url_for('chat.get_friend_requests') }}", function(res) {
+                if (res.success) {
+                    renderFriendRequests(res.requests);
+                } else {
+                    $('#notificationsList').html(`<div style="text-align: center; color: #ff7b72;">${res.message}</div>`);
+                }
+            }).fail(function() {
+                $('#notificationsList').html(`<div style="text-align: center; color: #ff7b72;">加载失败</div>`);
+            });
+        }
+
+        function renderFriendRequests(requests) {
+            if (requests.length === 0) {
+                $('#notificationsList').html(`
+                    <div class="empty-state" style="text-align: center; color: #8b949e; margin-top: 50px;">
+                        <i class="fas fa-bell-slash" style="font-size: 48px; margin-bottom: 20px;"></i>
+                        <div>暂无新的好友通知</div>
+                    </div>
+                `);
+                return;
+            }
+
+            let html = '';
+            requests.forEach(req => {
+                html += `
+                    <div class="notification-item" style="background: #161b22; padding: 15px; border-radius: 8px; border: 1px solid #30363d; margin-bottom: 15px; display: flex; align-items: flex-start; gap: 15px;">
+                        ${req.sender.avatar ? 
+                            `<img src="${req.sender.avatar}" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover;">` : 
+                            `<div style="width: 50px; height: 50px; border-radius: 50%; background: #58a6ff; display: flex; align-items: center; justify-content: center; color: white; font-size: 24px; font-weight: bold;">${req.sender.username[0].toUpperCase()}</div>`
+                        }
+                        <div style="flex: 1;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                                <div style="font-weight: bold; color: #e6edf3; font-size: 16px;">${req.sender.nickname || req.sender.username} <span style="font-size: 12px; color: #8b949e; font-weight: normal;">(@${req.sender.username})</span></div>
+                                <div style="font-size: 12px; color: #8b949e;">${req.created_at}</div>
+                            </div>
+                            <div style="color: #8b949e; margin-bottom: 10px;">请求添加你为好友</div>
+                            <div style="background: #0d1117; padding: 10px; border-radius: 6px; color: #c9d1d9; font-size: 14px; margin-bottom: 10px; border: 1px solid #21262d;">
+                                <div><span style="color: #8b949e;">验证信息:</span> ${req.hello_message}</div>
+                                ${req.remark ? `<div><span style="color: #8b949e;">备注:</span> ${req.remark}</div>` : ''}
+                            </div>
+                            <div style="display: flex; gap: 10px;">
+                                <button onclick="handleFriendRequest(${req.id}, 'accept')" style="background: #238636; color: white; border: none; padding: 6px 16px; border-radius: 4px; cursor: pointer; font-size: 14px;">同意</button>
+                                <button onclick="handleFriendRequest(${req.id}, 'reject')" style="background: #da3633; color: white; border: none; padding: 6px 16px; border-radius: 4px; cursor: pointer; font-size: 14px;">拒绝</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            $('#notificationsList').html(html);
+        }
+
+        // Initialize
+        $(document).ready(function() {
+            fetchFriends();
+            fetchChatList();
+        });
+
+        function fetchFriends() {
+            $.get("{{ url_for('chat.get_friends') }}", function(res) {
+                if (res.success) {
+                    renderFriends(res.friends);
+                }
+            });
+        }
+
+        function renderFriends(friends) {
+            const list = $('#friendListPanel');
+            list.empty();
+            
+            friends.forEach(f => {
+                const avatar = f.avatar || '';
+                const avatarHtml = avatar 
+                    ? `<img src="${avatar}" style="width: 30px; height: 30px; border-radius: 50%; margin-right: 10px; object-fit: cover;">`
+                    : `<div style="width: 30px; height: 30px; border-radius: 50%; margin-right: 10px; background: #58a6ff; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px; font-weight: bold;">${f.username[0].toUpperCase()}</div>`;
+                
+                const html = `
+                    <div class="contact-item" onclick="openFriendProfile(${f.id})" style="padding: 10px 20px; display: flex; align-items: center; cursor: pointer; color: #c9d1d9;">
+                        ${avatarHtml}
+                        <div class="contact-info">
+                            <div class="contact-name">${f.nickname || f.username}</div>
+                            <div class="contact-status" style="font-size: 12px; color: #8b949e;">[离线]</div>
+                        </div>
+                    </div>
+                `;
+                list.append(html);
+            });
+        }
+
+        function fetchChatList() {
+            $.get("{{ url_for('chat.get_chat_list') }}", function(res) {
+                if (res.success) {
+                    renderChatList(res.chats);
+                }
+            });
+        }
+
+        function renderChatList(chats) {
+            const list = $('.chat-list');
+            list.empty();
+            
+            chats.forEach(c => {
+                const isActive = c.room === currentRoom ? 'active' : '';
+                const avatar = c.avatar || '';
+                let avatarHtml;
+                
+                if (c.type === 'private') {
+                     avatarHtml = avatar 
+                        ? `<img src="${avatar}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">`
+                        : `<div class="avatar" style="background: #58a6ff; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">${c.name[0].toUpperCase()}</div>`;
+                } else {
+                    // Group/Server icon
+                     avatarHtml = `<div class="avatar"><i class="fas fa-users"></i></div>`;
+                }
+
+                const html = `
+                    <div class="chat-item ${isActive}" onclick="switchChat('${c.room}', '${c.name}', '${c.type}', '${c.id}')">
+                        ${avatarHtml}
+                        <div class="chat-info">
+                            <div class="chat-name">${c.name}</div>
+                            <div class="chat-preview" style="color: #8b949e; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${c.last_message || '暂无消息'}</div>
+                        </div>
+                    </div>
+                `;
+                list.append(html);
+            });
+        }
+
+        function startPrivateChat(room, name, avatar) {
+            // Switch to chat tab
+            switchTab($('.main-nav-item').eq(0), 'chat');
+            // Switch room
+            switchChat(room, name, 'private', null);
+            
+            // Ensure chat view is visible
+            $('#friendProfileModal').hide();
+            $('#friendNotificationsPanel').hide();
+            $('#chatMainContent').css('display', 'flex');
+
+            // Refresh chat list to show this item if not present (handled by backend, but we can force refresh)
+            fetchChatList();
+        }
+
+        function copyRoomId() {
+            const id = $('#currentRoomId').text();
+            if (id) {
+                copyToClipboard(id);
+            }
+        }
+
+        function switchChat(room, name, type, id) {
+            if (currentRoom === room) return;
+            
+            // Update UI
+            $('.chat-item').removeClass('active');
+            // Find item with this room and set active (might need data attribute)
+            // For now, re-render will handle it or we can iterate
+            
+            // Update Top Bar
+            $('#chatTitle').text(name);
+            
+            if (type === 'group' && id && id !== 'server') {
+                $('#chatRoomIdContainer').show();
+                $('#currentRoomId').text(id);
+            } else {
+                $('#chatRoomIdContainer').hide();
+            }
+            
+            // Clear messages
+            $('#messageArea').empty();
+            $('#messageArea').append('<div class="system-message">正在切换房间...</div>');
+            
+            // Connect to new room
+            connect(room);
+            
+            // Refresh chat list to update active state
+            setTimeout(fetchChatList, 500); // Small delay to allow WS join to potentially update last message if needed
+        }
+
+        function handleFriendRequest(requestId, action) {
+            $.post("{{ url_for('chat.handle_friend_request') }}", {
+                request_id: requestId,
+                action: action
+            }, function(res) {
+                if (res.success) {
+                    fetchFriendRequests(); // Refresh notifications
+                    if (action === 'accept') {
+                        // Refresh Friends List and Chat List
+                        fetchFriends();
+                        fetchChatList();
+                    }
+                } else {
+                    alert(res.message);
+                }
+            });
+        }
+        
+        // Restore chat view when clicking chat items
+        $(document).on('click', '.chat-item', function() {
+            $('#friendNotificationsPanel').hide();
+            $('#friendProfileModal').hide();
+            $('#chatMainContent').css('display', 'flex');
+        });
+
+        // Friend Profile Logic
+        /* Friend Profile Logic */
+        let currentProfileFriendId = null;
+
+        function openFriendProfile(friendId) {
+            currentProfileFriendId = friendId;
+            $('#chatMainContent').hide();
+            $('#friendNotificationsPanel').hide();
+            
+            // Show Loading or clear previous data
+            $('#friendProfileModal').css('display', 'flex');
+            $('#fpAvatarContainer').html('<div style="width:100px;height:100px;background:#161b22;border-radius:50%;"></div>'); // Placeholder
+            
+            $.post("{{ url_for('chat.get_friend_details') }}", { user_id: friendId }, function(res) {
+                if (res.success) {
+                    const f = res.friend;
+                    
+                    // Avatar
+                    const avatarHtml = f.avatar 
+                        ? `<img src="${f.avatar}" style="width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 4px solid #1f6feb;">`
+                        : `<div style="width: 100px; height: 100px; border-radius: 50%; background: #58a6ff; display: flex; align-items: center; justify-content: center; color: white; font-size: 40px; font-weight: bold; border: 4px solid #1f6feb;">${f.username[0].toUpperCase()}</div>`;
+                    $('#fpAvatarContainer').html(avatarHtml);
+                    
+                    // Info
+                    $('#fpNickname').text(f.nickname || f.username);
+                    $('#fpUsername').text('账号: ' + f.username);
+                    $('#fpRemark').text(f.remark || '无备注');
+                    
+                    // Status Check
+                    let isOnline = false;
+                    if (typeof previousUserList !== 'undefined' && previousUserList.has(f.username)) {
+                        isOnline = true;
+                    }
+                    
+                    if (isOnline) {
+                        $('#fpStatusDot').css('background', '#238636');
+                        $('#fpStatusDot').removeClass('offline');
+                        $('#fpStatusText').text('在线');
+                    } else {
+                        $('#fpStatusDot').css('background', '#8b949e');
+                        $('#fpStatusDot').addClass('offline');
+                        $('#fpStatusText').text('离线');
+                    }
+
+                    // Actions
+                    $('#fpSendMsgBtn').off('click').on('click', function() {
+                        startPrivateChat(f.room, f.nickname || f.username, f.avatar);
+                    });
+                    
+                } else {
+                    alert(res.message);
+                    $('#friendProfileModal').hide();
+                    $('#chatMainContent').show();
+                }
+            });
+        }
+
+        // Create Group Logic
+        function createGroupDirect() {
+            $('#createGroupModal').css('display', 'flex');
+            $('#createGroupName').val('');
+            $('#inviteFriendList').html('<div style="color: #8b949e; padding: 5px;">加载好友列表...</div>');
+            
+            // Fetch friends to invite
+            $.post("{{ url_for('chat.get_friends') }}", { username: '{{ username }}' }, function(res) {
+                if(res.success) {
+                    const list = $('#inviteFriendList');
+                    list.empty();
+                    if(res.friends.length === 0) {
+                        list.html('<div style="color: #8b949e; padding: 5px;">暂无好友可邀请</div>');
+                    } else {
+                        res.friends.forEach(f => {
+                             const name = f.remark || f.nickname || f.username;
+                             const html = `
+                                <div style="display: flex; align-items: center; padding: 5px; border-bottom: 1px solid #21262d;">
+                                    <input type="checkbox" class="invite-checkbox" value="${f.id}" style="margin-right: 10px;">
+                                    <div style="width: 24px; height: 24px; border-radius: 50%; background: #58a6ff; display: flex; align-items: center; justify-content: center; color: white; font-size: 10px; margin-right: 8px;">${f.username[0].toUpperCase()}</div>
+                                    <span style="color: #e6edf3;">${name}</span>
+                                </div>
+                             `;
+                             list.append(html);
+                        });
+                    }
+                } else {
+                     $('#inviteFriendList').html('<div style="color: #f85149; padding: 5px;">加载失败</div>');
+                }
+            });
+        }
+        
+        function submitCreateGroup() {
+            const name = $('#createGroupName').val().trim();
+            if(!name) {
+                alert('请输入群聊名称');
+                return;
+            }
+            
+            const memberIds = [];
+            $('.invite-checkbox:checked').each(function() {
+                memberIds.push($(this).val());
+            });
+            
+            $.post("{{ url_for('chat.create_group') }}", {
+                name: name,
+                members: JSON.stringify(memberIds)
+            }, function(res) {
+                if(res.success) {
+                    $('#createGroupModal').hide();
+                    
+                    // Show Success with Room ID
+                    const content = `
+                        <div style="padding: 20px; text-align: center; color: #e6edf3;">
+                            <div style="color: #238636; font-size: 40px; margin-bottom: 10px;"><i class="fas fa-check-circle"></i></div>
+                            <h3 style="margin-bottom: 10px;">创建成功</h3>
+                            <p style="color: #8b949e; margin-bottom: 20px;">群号: <strong style="color: #58a6ff; font-size: 18px;">${res.room_id}</strong></p>
+                            <button class="btn-primary" onclick="copyToClipboard('${res.room_id}')" style="background: #1f6feb; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer;">复制群号</button>
+                        </div>
+                    `;
+                    
+                    // Use a simple custom modal for success since layer might not be fully configured or we want consistency
+                    const successModal = $(`
+                        <div id="successModal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 2200; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.5);">
+                            <div style="background: #161b22; width: 300px; border-radius: 8px; border: 1px solid #30363d; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.5); position: relative;">
+                                <i class="fas fa-times" onclick="$('#successModal').remove()" style="position: absolute; top: 10px; right: 10px; cursor: pointer; color: #8b949e;"></i>
+                                ${content}
+                            </div>
+                        </div>
+                    `);
+                    $('body').append(successModal);
+                    
+                } else {
+                    alert(res.message);
+                }
+            });
+        }
+        
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(function() {
+                alert('已复制到剪贴板');
+            }, function(err) {
+                console.error('Could not copy text: ', err);
+                alert('复制失败，请手动复制');
+            });
+        }
+        
+        // Join Group Logic
+        // Duplicate addFriendOrGroup removed to allow Search Modal access
+        
+        function submitJoinGroup() {
+            const groupId = $('#joinGroupId').val().trim();
+            if(!groupId) {
+                alert('请输入群号');
+                return;
+            }
+            
+            $.post("{{ url_for('chat.join_group_by_id') }}", { group_id: groupId }, function(res) {
+                if(res.success) {
+                    $('#joinGroupModal').hide();
+                    alert('加入成功！');
+                    location.reload(); // Reload to show new group
+                } else {
+                    alert(res.message);
+                }
+            });
+        }
     </script>
+<!-- Search Modal -->
+<div id="searchModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 2000; align-items: center; justify-content: center; pointer-events: auto;">
+    <div id="searchModalContent" style="background: #161b22; width: 400px; border-radius: 8px; border: 1px solid #30363d; overflow: hidden; pointer-events: auto; box-shadow: 0 4px 12px rgba(0,0,0,0.5); transform: translate(0, 0);">
+        <div id="searchModalHeader" style="padding: 15px; border-bottom: 1px solid #21262d; display: flex; justify-content: space-between; align-items: center; cursor: move; user-select: none;">
+            <div style="font-weight: bold; color: #e6edf3;">添加好友/群聊</div>
+            <i class="fas fa-times" onclick="closeSearchModal()" style="cursor: pointer; color: #8b949e;"></i>
+        </div>
+        <div style="padding: 20px;">
+            <div class="search-tabs" style="display: flex; margin-bottom: 20px; border-bottom: 1px solid #21262d;">
+                <div class="search-tab active" onclick="switchSearchTab('user')" style="padding: 10px 20px; cursor: pointer; color: #58a6ff; border-bottom: 2px solid #58a6ff;">找人</div>
+                <div class="search-tab" onclick="switchSearchTab('group')" style="padding: 10px 20px; cursor: pointer; color: #8b949e; border-bottom: 2px solid transparent;">找群</div>
+            </div>
+            
+            <div class="search-input-group" style="display: flex; gap: 10px; margin-bottom: 20px;">
+                <input type="text" id="searchInput" placeholder="请输入用户账号" style="flex: 1; background: #0d1117; border: 1px solid #30363d; color: #e6edf3; padding: 8px 12px; border-radius: 6px; outline: none;">
+                <button onclick="performSearch()" style="background: #238636; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer;">搜索</button>
+            </div>
+            
+            <div id="searchResults" style="min-height: 100px;">
+                <div class="empty-state" style="text-align: center; color: #8b949e; padding-top: 20px;">
+                    请输入关键词进行搜索
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Friend Request Modal -->
+<div id="friendRequestModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 2100; align-items: center; justify-content: center; background: rgba(0,0,0,0.5);">
+    <div style="background: #161b22; width: 350px; border-radius: 8px; border: 1px solid #30363d; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.5);">
+        <div style="padding: 15px; border-bottom: 1px solid #21262d; display: flex; justify-content: space-between; align-items: center;">
+            <div style="font-weight: bold; color: #e6edf3;">发送好友申请</div>
+            <i class="fas fa-times" onclick="closeFriendRequestModal()" style="cursor: pointer; color: #8b949e;"></i>
+        </div>
+        <div style="padding: 20px;">
+            <input type="hidden" id="friendRequestUserId">
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; color: #8b949e; margin-bottom: 5px;">验证信息</label>
+                <textarea id="friendRequestMessage" rows="3" style="width: 100%; background: #0d1117; border: 1px solid #30363d; color: #e6edf3; padding: 8px; border-radius: 6px; outline: none; resize: none;" placeholder="我是..."></textarea>
+            </div>
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; color: #8b949e; margin-bottom: 5px;">备注</label>
+                <input type="text" id="friendRequestRemark" style="width: 100%; background: #0d1117; border: 1px solid #30363d; color: #e6edf3; padding: 8px; border-radius: 6px; outline: none;" placeholder="设置备注">
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                <button onclick="closeFriendRequestModal()" style="background: transparent; border: 1px solid #30363d; color: #c9d1d9; padding: 6px 12px; border-radius: 4px; cursor: pointer;">取消</button>
+                <button onclick="confirmSendFriendRequest()" style="background: #238636; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">发送</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+<!-- Create Group Modal -->
+<div id="createGroupModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 2100; align-items: center; justify-content: center; background: rgba(0,0,0,0.5);">
+    <div style="background: #161b22; width: 400px; border-radius: 8px; border: 1px solid #30363d; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.5);">
+        <div style="padding: 15px; border-bottom: 1px solid #21262d; display: flex; justify-content: space-between; align-items: center;">
+            <div style="font-weight: bold; color: #e6edf3;">创建群聊</div>
+            <i class="fas fa-times" onclick="$('#createGroupModal').hide()" style="cursor: pointer; color: #8b949e;"></i>
+        </div>
+        <div style="padding: 20px;">
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; color: #8b949e; margin-bottom: 5px;">群聊名称</label>
+                <input type="text" id="createGroupName" style="width: 100%; background: #0d1117; border: 1px solid #30363d; color: #e6edf3; padding: 8px; border-radius: 6px; outline: none;" placeholder="给群聊起个名字">
+            </div>
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; color: #8b949e; margin-bottom: 5px;">邀请好友 (可选)</label>
+                <div id="inviteFriendList" style="max-height: 200px; overflow-y: auto; background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 5px;">
+                    <!-- Checkboxes injected by JS -->
+                </div>
+            </div>
+            <button onclick="submitCreateGroup()" style="width: 100%; background: #238636; color: white; border: none; padding: 10px; border-radius: 6px; cursor: pointer;">创建</button>
+        </div>
+    </div>
+</div>
+
+<!-- Join Group Modal -->
+<div id="joinGroupModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 2100; align-items: center; justify-content: center; background: rgba(0,0,0,0.5);">
+    <div style="background: #161b22; width: 350px; border-radius: 8px; border: 1px solid #30363d; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.5);">
+         <div style="padding: 15px; border-bottom: 1px solid #21262d; display: flex; justify-content: space-between; align-items: center;">
+            <div style="font-weight: bold; color: #e6edf3;">加入群聊</div>
+            <i class="fas fa-times" onclick="$('#joinGroupModal').hide()" style="cursor: pointer; color: #8b949e;"></i>
+        </div>
+        <div style="padding: 20px;">
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; color: #8b949e; margin-bottom: 5px;">群号</label>
+                <input type="text" id="joinGroupId" style="width: 100%; background: #0d1117; border: 1px solid #30363d; color: #e6edf3; padding: 8px; border-radius: 6px; outline: none;" placeholder="请输入群号">
+            </div>
+            <button onclick="submitJoinGroup()" style="width: 100%; background: #1f6feb; color: white; border: none; padding: 10px; border-radius: 6px; cursor: pointer;">加入</button>
+        </div>
+    </div>
+</div>
 </body>
 </html>

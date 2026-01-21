@@ -1,0 +1,20 @@
+
+/* Orange Soda Skin Button */
+.skin-option[data-skin="orange_soda"] {
+    background: #FF9800; /* Orange */
+    border: 2px solid #FFF; 
+    background-image: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.8) 10%, transparent 11%),
+                      radial-gradient(circle at 70% 60%, rgba(255,255,255,0.4) 5%, transparent 6%),
+                      linear-gradient(45deg, transparent 40%, rgba(255,255,255,0.2) 45%, transparent 50%);
+    box-shadow: 0 0 5px #FF9800;
+}
+
+.skin-option[data-skin="orange_soda"]:hover {
+    box-shadow: 0 0 15px #FF9800;
+    transform: scale(1.2) rotate(10deg);
+}
+
+.skin-option[data-skin="orange_soda"].active {
+    border-color: #FFEB3B; /* Lemon Yellow Border */
+    box-shadow: 0 0 15px #FFEB3B, 0 0 30px #FF9800;
+}

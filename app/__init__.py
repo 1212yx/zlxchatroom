@@ -1,6 +1,6 @@
 from flask import Flask
 from config import config
-from .extensions import db, socketio, migrate, sock
+from .extensions import db, migrate, sock
 
 def create_app(config_name='default'):
     app = Flask(__name__)
@@ -9,7 +9,7 @@ def create_app(config_name='default'):
     # Initialize extensions
     db.init_app(app)
     migrate.init_app(app, db)
-    socketio.init_app(app)
+    # socketio.init_app(app)
     sock.init_app(app)
 
     # Import models to ensure they are registered with SQLAlchemy
@@ -37,5 +37,9 @@ def create_app(config_name='default'):
     @app.route('/favicon.ico')
     def favicon():
         return '', 204
+
+    @app.route('/favicon.ico')
+    def favicon():
+        return "", 204
 
     return app

@@ -1,10 +1,41 @@
-from flask import render_template, request, session, redirect, url_for
+from flask import render_template, request, session, redirect, url_for, jsonify
 from . import chat
 from app.extensions import sock, db
 from app.models import User, Room, Message, WSServer
-from sqlalchemy import text
+from sqlalchemy import text, db
+from app.models import WSServer, db
+from app.models import User, Room, Message, Sticker, FriendRequest, GroupRequest, AIModel, room_members
 import json
+import os
+import uuid
+from werkzeug.utils import secure_filename
 from datetime import datetime
+from app.bot.core import get_bot_response
+from app.chat.weather import get_weather_data, parse_weather_video
+from app.chat.music import get_music_data
+
+# Configure Uploads
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+ALLOWED_FILE_EXTENSIONS = {'txt', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'zip', 'rar', '7z', 'mp3', 'mp4', 'wav', 'webm', 'ogg'}
+UPLOAD_FOLDER = os.path.join('app', 'chat', 'static', 'uploads', 'stickers')
+FILE_UPLOAD_FOLDER = os.path.join('app', 'chat', 'static', 'uploads', 'files')
+AVATAR_UPLOAD_FOLDER = os.path.join('app', 'chat', 'static', 'uploads', 'avatars')
+
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def allowed_general_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in (ALLOWED_EXTENSIONS | ALLOWED_FILE_EXTENSIONS)
+
+# Ensure upload directories exist
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
+if not os.path.exists(FILE_UPLOAD_FOLDER):
+    os.makedirs(FILE_UPLOAD_FOLDER)
+if not os.path.exists(AVATAR_UPLOAD_FOLDER):
+    os.makedirs(AVATAR_UPLOAD_FOLDER)
 from app.bot.core import get_bot_response
 from app.chat.weather import get_weather_data, parse_weather_video
 from app.chat.music import get_music_data
@@ -15,11 +46,14 @@ from app.chat.news import get_news_data
 rooms = {}
 # Mapping from ws object to username for tracking who is who
 ws_user_map = {}
+# Mapping from ws object to username for tracking who is who
+ws_user_map = {}
 
 @chat.route('/', methods=['GET', 'POST'])
 def login():
     error = None
     if request.method == 'POST':
+        username = request.form.get('username') # Using 'username' field from login form
         username = request.form.get('username') # Using 'username' field from login form
         password = request.form.get('password')
         server = request.form.get('server')
@@ -28,15 +62,24 @@ def login():
             user = User.query.filter_by(username=username).first()
             
             if not user:
+            user = User.query.filter_by(username=username).first()
+            
+            if not user:
                 error = "该账号未注册，请先注册账号"
+            elif not user.check_password(password):
             elif not user.check_password(password):
                 error = "账号或密码错误"
             else:
                 session['user'] = user.nickname # Store nickname in session for display
                 session['username'] = user.username # Store username in session for identification
+                session['user'] = user.nickname # Store nickname in session for display
+                session['username'] = user.username # Store username in session for identification
                 session['server'] = server
                 return redirect(url_for('chat.home'))
             
+    # 获取所有激活的服务器
+    servers = WSServer.query.filter_by(is_active=True).all()
+    return render_template('chat/login.html', error=error, servers=servers)
     # 获取所有激活的服务器
     servers = WSServer.query.filter_by(is_active=True).all()
     return render_template('chat/login.html', error=error, servers=servers)
@@ -53,10 +96,16 @@ def register():
         if username and nickname and password and confirm_password:
             existing_user = User.query.filter_by(username=username).first()
             if existing_user:
+            existing_user = User.query.filter_by(username=username).first()
+            if existing_user:
                 error = "该账号已被注册"
             elif password != confirm_password:
                 error = "两次输入的密码不一致"
             else:
+                new_user = User(username=username, nickname=nickname)
+                new_user.set_password(password)
+                db.session.add(new_user)
+                db.session.commit()
                 new_user = User(username=username, nickname=nickname)
                 new_user.set_password(password)
                 db.session.add(new_user)
@@ -71,7 +120,12 @@ def register():
 def home():
     if 'user' not in session:
         return redirect(url_for('chat.login'))
-    return render_template('chat/chat.html', user=session['user'], server=session['server'])
+    
+    username = session.get('username')
+    user_obj = User.query.filter_by(username=username).first()
+    avatar = user_obj.avatar if user_obj else None
+    
+    return render_template('chat/chat.html', user=session['user'], username=username, server=session['server'], avatar=avatar, current_user_obj_id=user_obj.id if user_obj else 0)
 
 @chat.route('/logout')
 def logout():
@@ -95,7 +149,9 @@ def websocket(ws):
     
     try:
         # Wait for first message which should be join
+        print("Waiting for join message...")
         data = ws.receive()
+        print(f"Received data: {data}")
         if data:
             msg = json.loads(data)
             if msg.get('type') == 'join':
@@ -149,6 +205,7 @@ def websocket(ws):
                          }))
                 
                 # Broadcast join
+                print("Broadcasting join...")
                 broadcast(room, {
                     'type': 'system', 
                     'content': f'{user} 加入了 {room}',
@@ -159,6 +216,7 @@ def websocket(ws):
                 broadcast_user_list(room)
                 
                 # Main loop
+                print("Entering main loop...")
                 while True:
                     data = ws.receive()
                     if not data:
@@ -606,9 +664,25 @@ def websocket(ws):
 
     except Exception as e:
         print(f"WS Error: {e}")
+        db.session.remove() # Ensure release on error
     finally:
+        # Log Leave/Logout
+        if user:
+            try:
+                if room:
+                    log_leave = ActivityLog(user_id=user_obj.id if user_obj else None, username=user, action='leave_room', content=room)
+                    db.session.add(log_leave)
+                log_out = ActivityLog(user_id=user_obj.id if user_obj else None, username=user, action='logout', content='下线')
+                db.session.add(log_out)
+                db.session.commit()
+            except:
+                db.session.rollback()
+
         if room and room in rooms and ws in rooms[room]:
             rooms[room].remove(ws)
+            if ws in ws_user_map:
+                del ws_user_map[ws]
+                
             if ws in ws_user_map:
                 del ws_user_map[ws]
                 
@@ -620,6 +694,8 @@ def websocket(ws):
                     'content': f'{user} 离开了',
                     'timestamp': datetime.now().strftime('%H:%M')
                 })
+                # Broadcast updated user list
+                broadcast_user_list(room)
                 # Broadcast updated user list
                 broadcast_user_list(room)
 
@@ -635,6 +711,21 @@ def broadcast(room, message):
                     rooms[room].remove(client)
                 except:
                     pass
+
+def broadcast_user_list(room):
+    if room in rooms:
+        # Get unique users in the room
+        users_in_room = set()
+        for client in rooms[room]:
+            if client in ws_user_map:
+                users_in_room.add(ws_user_map[client])
+        
+        message = {
+            'type': 'users',
+            'users': list(users_in_room),
+            'count': len(users_in_room)
+        }
+        broadcast(room, message)
 
 def broadcast_user_list(room):
     if room in rooms:

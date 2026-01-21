@@ -2,9 +2,14 @@ from flask import render_template, request, redirect, url_for, flash, session, c
 from . import admin
 from ..models import AdminUser, User, Room, WSServer, AIModel, ThirdPartyApi
 from ..extensions import db
+from ..services.ai_analysis import AIAnalysisService
+# from app.chat.routes import broadcast, rooms # Moved to local import to avoid circular dependency
+
 from functools import wraps
 import os
 import time
+import json
+from datetime import datetime
 from werkzeug.utils import secure_filename
 import openai
 
@@ -149,25 +154,37 @@ def room_members(room_id):
             'is_banned': m.is_banned
         })
     return {'data': members}
+    return {'data': members}
 
 @admin.route('/rooms/<int:id>/delete', methods=['POST'])
+@admin.route('/rooms/<int:id>/delete', methods=['POST'])
 @admin_required
+def delete_room(id):
+    room = Room.query.get_or_404(id)
 def delete_room(id):
     room = Room.query.get_or_404(id)
     db.session.delete(room)
     db.session.commit()
     return {'status': 'success', 'message': '删除成功'}
+    return {'status': 'success', 'message': '删除成功'}
 
 @admin.route('/rooms/<int:id>/ban', methods=['POST'])
+@admin.route('/rooms/<int:id>/ban', methods=['POST'])
 @admin_required
+def ban_room(id):
+    room = Room.query.get_or_404(id)
 def ban_room(id):
     room = Room.query.get_or_404(id)
     room.is_banned = not room.is_banned
     db.session.commit()
     return {'status': 'success', 'message': '操作成功'}
+    return {'status': 'success', 'message': '操作成功'}
 
 @admin.route('/rooms/<int:id>', methods=['GET'])
+@admin.route('/rooms/<int:id>', methods=['GET'])
 @admin_required
+def get_room(id):
+    room = Room.query.get_or_404(id)
 def get_room(id):
     room = Room.query.get_or_404(id)
     return {
@@ -186,7 +203,14 @@ def profile():
     if request.method == 'POST':
         nickname = request.form.get('nickname')
         user.nickname = nickname
+        user.nickname = nickname
         
+        # Handle avatar upload
+        if 'avatar' in request.files:
+            file = request.files['avatar']
+            if file and file.filename != '':
+                # Ensure uploads directory exists
+                upload_folder = os.path.join(current_app.static_folder, 'uploads', 'avatars')
         # Handle avatar upload
         if 'avatar' in request.files:
             file = request.files['avatar']
@@ -196,6 +220,7 @@ def profile():
                 if not os.path.exists(upload_folder):
                     os.makedirs(upload_folder)
                 
+                filename = secure_filename(f"admin_{user.id}_{int(time.time())}.png")
                 filename = secure_filename(f"admin_{user.id}_{int(time.time())}.png")
                 try:
                     file.save(os.path.join(upload_folder, filename))

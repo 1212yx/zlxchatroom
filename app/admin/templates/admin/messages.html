@@ -1,0 +1,168 @@
+{% extends "admin/layout.html" %}
+
+{% block breadcrumb %}系统管理 / 群聊天记录{% endblock %}
+
+{% block content %}
+<div class="layui-card">
+    <div class="layui-card-header">
+        消息筛选
+    </div>
+    <div class="layui-card-body">
+        <form class="layui-form" action="{{ url_for('admin.messages') }}" method="GET">
+            <div class="layui-form-item">
+                <div class="layui-inline">
+                    <label class="layui-form-label">房间</label>
+                    <div class="layui-input-inline">
+                        <select name="room_id">
+                            <option value="">全部</option>
+                            {% for room in rooms %}
+                            <option value="{{ room.id }}" {% if current_room_id == room.id %}selected{% endif %}>{{ room.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="layui-inline">
+                    <label class="layui-form-label">关键词</label>
+                    <div class="layui-input-inline">
+                        <input type="text" name="keyword" placeholder="搜索内容" autocomplete="off" class="layui-input" value="{{ keyword if keyword else '' }}">
+                    </div>
+                </div>
+                <div class="layui-inline">
+                    <button class="layui-btn" lay-submit lay-filter="search">搜索</button>
+                    <a href="{{ url_for('admin.messages') }}" class="layui-btn layui-btn-primary">重置</a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="layui-card">
+    <div class="layui-card-header">
+        消息列表
+        <button class="layui-btn layui-btn-xs layui-btn-danger" id="btn-batch-delete" style="float: right; margin-top: 8px;">
+            <i class="layui-icon layui-icon-delete"></i> 批量删除
+        </button>
+    </div>
+    <div class="layui-card-body">
+        <table class="layui-table">
+            <thead>
+                <tr>
+                    <th style="width: 40px;"><input type="checkbox" id="check-all" lay-skin="primary"></th>
+                    <th>ID</th>
+                    <th>发送时间</th>
+                    <th>发送者</th>
+                    <th>房间</th>
+                    <th>内容</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for msg in messages %}
+                <tr>
+                    <td><input type="checkbox" name="msg_id" value="{{ msg.id }}" lay-skin="primary"></td>
+                    <td>{{ msg.id }}</td>
+                    <td>{{ msg.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                    <td>
+                        {% if msg.author %}
+                            {{ msg.author.username }} ({{ msg.author.nickname }})
+                        {% else %}
+                            <span class="layui-badge layui-bg-gray">系统/未知</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if msg.room %}
+                            {{ msg.room.name }}
+                        {% else %}
+                            <span class="layui-badge layui-bg-gray">未知</span>
+                        {% endif %}
+                    </td>
+                    <td style="word-break: break-all;">{{ msg.content }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        
+        <!-- 分页 -->
+        <div id="pagination" style="text-align: center; margin-top: 20px;" 
+             data-total="{{ pagination.total }}" 
+             data-page="{{ pagination.page }}" 
+             data-limit="{{ pagination.per_page }}"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+layui.use(['laypage', 'form', 'layer'], function(){
+    var laypage = layui.laypage;
+    var form = layui.form;
+    var layer = layui.layer;
+    var $ = layui.$;
+    
+    // 全选/全不选
+    $('#check-all').click(function(){
+        var checked = $(this).prop('checked');
+        $('input[name="msg_id"]').prop('checked', checked);
+        form.render('checkbox');
+    });
+
+    // 批量删除
+    $('#btn-batch-delete').click(function(){
+        var ids = [];
+        $('input[name="msg_id"]:checked').each(function(){
+            ids.push($(this).val());
+        });
+        
+        if(ids.length === 0){
+            layer.msg('请先选择要删除的消息', {icon: 0});
+            return;
+        }
+        
+        layer.confirm('确定要删除选中的 ' + ids.length + ' 条消息吗？', {icon: 3, title:'提示'}, function(index){
+            $.ajax({
+                url: "{{ url_for('admin.messages_batch_delete') }}",
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ids: ids}),
+                success: function(res){
+                    if(res.status === 'success'){
+                        layer.msg(res.message, {icon: 1});
+                        setTimeout(function(){ location.reload(); }, 1000);
+                    } else {
+                        layer.msg(res.message, {icon: 2});
+                    }
+                },
+                error: function(xhr, status, error){
+                    layer.msg('操作失败: ' + error, {icon: 2});
+                }
+            });
+            layer.close(index);
+        });
+    });
+
+    // 获取分页数据
+    var total = parseInt($('#pagination').data('total'));
+    var curr = parseInt($('#pagination').data('page'));
+    var limit = parseInt($('#pagination').data('limit'));
+
+    // 分页
+    laypage.render({
+        elem: 'pagination',
+        count: total,
+        limit: limit,
+        curr: curr,
+        layout: ['count', 'prev', 'page', 'next', 'skip'],
+        jump: function(obj, first){
+            if(!first){
+                // 构建查询参数
+                var url = "{{ url_for('admin.messages') }}?page=" + obj.curr;
+                var roomId = $('select[name="room_id"]').val();
+                var keyword = $('input[name="keyword"]').val();
+                if(roomId) url += '&room_id=' + roomId;
+                if(keyword) url += '&keyword=' + encodeURIComponent(keyword);
+                location.href = url;
+            }
+        }
+    });
+});
+</script>
+{% endblock %}
