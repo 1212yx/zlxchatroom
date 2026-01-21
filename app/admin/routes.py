@@ -1,6 +1,6 @@
 from flask import render_template, request, redirect, url_for, flash, session, current_app, jsonify, Response, stream_with_context
 from . import admin
-from ..models import AdminUser, User, Room, WSServer, AIModel, ThirdPartyApi, Menu, Role, AIChatSession, AIChatMessage, Message, SensitiveWord, WarningLog, ActivityLog
+from ..models import AdminUser, User, Room, WSServer, AIModel, ThirdPartyApi, Menu, Role, AIChatSession, AIChatMessage, Message, SensitiveWord, WarningLog, ActivityLog, RoomFile
 from ..extensions import db
 from ..services.ai_analysis import AIAnalysisService
 
@@ -1309,6 +1309,61 @@ def monitor_data():
         }
         
     return jsonify(data)
+
+# ================= Group File Management Routes =================
+
+@admin.route('/room-files')
+@admin_required
+def room_files():
+    page = request.args.get('page', 1, type=int)
+    per_page = 15
+    
+    # Optional filtering
+    room_id = request.args.get('room_id', type=int)
+    file_type = request.args.get('file_type')
+    
+    query = RoomFile.query
+    
+    if room_id:
+        query = query.filter_by(room_id=room_id)
+    if file_type:
+        query = query.filter(RoomFile.file_type == file_type)
+        
+    pagination = query.order_by(RoomFile.created_at.desc()).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+    
+    files = pagination.items
+    
+    # Get all rooms for filter dropdown
+    rooms = Room.query.all()
+    
+    return render_template('admin/room_file_list.html', 
+                           files=files, 
+                           pagination=pagination, 
+                           rooms=rooms,
+                           current_room_id=room_id,
+                           current_file_type=file_type)
+
+@admin.route('/api/stats/files')
+@admin_required
+def file_stats():
+    # 1. Total size by file type
+    type_stats = db.session.query(
+        RoomFile.file_type, 
+        db.func.sum(RoomFile.file_size)
+    ).group_by(RoomFile.file_type).all()
+    
+    # 2. Total size by room (Top 10)
+    room_stats = db.session.query(
+        Room.name,
+        db.func.sum(RoomFile.file_size)
+    ).join(RoomFile).group_by(Room.id).order_by(db.func.sum(RoomFile.file_size).desc()).limit(10).all()
+    
+    return jsonify({
+        'type_stats': [{'name': t[0], 'value': float(t[1] or 0)} for t in type_stats],
+        'room_stats': {'names': [r[0] for r in room_stats], 'values': [float(r[1] or 0) for r in room_stats]}
+    })
 
 @admin.route('/api/monitor/activities')
 @admin_required

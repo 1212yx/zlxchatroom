@@ -1,42 +1,40 @@
-from app import create_app
-from app.extensions import db
+from app import create_app, db
 from app.models import Menu, Role
 
 app = create_app()
 
 with app.app_context():
-    # Check if menu exists
-    menu_name = "可视化大屏"
-    menu = Menu.query.filter_by(name=menu_name).first()
-    
-    if not menu:
-        print(f"Creating menu '{menu_name}'...")
-        menu = Menu(
-            name=menu_name,
-            icon="layui-icon-chart-screen",
-            url="admin.dashboard",
-            order=1, # High priority
+    # 1. Find Parent Menu "后台采集"
+    parent = Menu.query.filter_by(name='后台采集').first()
+    if not parent:
+        # If not found, create it or put it under root (not recommended)
+        print("Error: Parent menu '后台采集' not found.")
+        exit(1)
+        
+    # 2. Check if "群文件管理" already exists
+    existing = Menu.query.filter_by(name='群文件管理').first()
+    if existing:
+        print("Menu '群文件管理' already exists.")
+        new_menu = existing
+    else:
+        new_menu = Menu(
+            name='群文件管理',
+            url='admin.room_files',
+            parent_id=parent.id,
+            icon='layui-icon-file',
+            order=3,
             is_visible=True
         )
-        db.session.add(menu)
+        db.session.add(new_menu)
         db.session.commit()
-        print(f"Menu '{menu_name}' created with ID {menu.id}")
-    else:
-        print(f"Menu '{menu_name}' already exists.")
-        # Update url just in case
-        menu.url = "admin.dashboard"
-        menu.icon = "layui-icon-chart-screen"
-        db.session.commit()
+        print(f"Menu '群文件管理' created with ID {new_menu.id}.")
 
-    # Assign to Super Admin Role (usually id=1 or name='Super Admin')
-    # Let's find a role that looks like super admin
-    role = Role.query.filter(Role.name.ilike('%admin%')).first()
-    if role:
-        if menu not in role.menus:
-            role.menus.append(menu)
-            db.session.commit()
-            print(f"Assigned menu to role '{role.name}'")
-        else:
-            print(f"Menu already assigned to role '{role.name}'")
-    else:
-        print("No Admin role found. Please assign manually.")
+    # 3. Assign to all roles (for simplicity, or just Super Admin)
+    roles = Role.query.all()
+    for role in roles:
+        if new_menu not in role.menus:
+            role.menus.append(new_menu)
+            print(f"Assigned to role: {role.name}")
+            
+    db.session.commit()
+    print("Permissions updated.")

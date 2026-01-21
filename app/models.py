@@ -219,6 +219,25 @@ class WarningLog(db.Model):
     def __repr__(self):
         return f'<WarningLog {self.id}>'
 
+class RoomFile(db.Model):
+    __tablename__ = 'room_files'
+    id = db.Column(db.Integer, primary_key=True)
+    filename = db.Column(db.String(256), nullable=False) # 存储的文件名
+    original_filename = db.Column(db.String(256), nullable=False) # 原始文件名
+    file_size = db.Column(db.Integer, default=0) # 文件大小，单位字节
+    file_type = db.Column(db.String(64)) # 文件类型/扩展名
+    file_path = db.Column(db.String(512)) # 文件存储路径
+    
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    room_id = db.Column(db.Integer, db.ForeignKey('rooms.id'))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    user = db.relationship('User', backref=db.backref('files', lazy='dynamic'))
+    room = db.relationship('Room', backref=db.backref('files', lazy='dynamic'))
+
+    def __repr__(self):
+        return f'<RoomFile {self.original_filename}>'
+
 class ActivityLog(db.Model):
     __tablename__ = 'activity_logs'
     id = db.Column(db.Integer, primary_key=True)
