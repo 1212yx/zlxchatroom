@@ -5,9 +5,6 @@ body {
     margin: 0;
     padding: 0;
     height: 100vh;
-    display: flex;
-    justify-content: center;
-    align-items: center;
     overflow: hidden;
 }
 
@@ -21,14 +18,33 @@ body {
     z-index: -1;
 }
 
+/* 4:6上下比例布局 */
 .login-wrapper {
     display: flex;
-    justify-content: center;
-    align-items: center;
+    flex-direction: column;
     width: 100%;
-    height: 100%;
+    height: 100vh;
     background: transparent;
     position: relative;
+}
+
+/* 上部40%区域 - 标题和品牌展示 */
+.login-header-section {
+    flex: 4;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding-bottom: 2rem;
+}
+
+/* 下部60%区域 - 登录表单 */
+.login-form-section {
+    flex: 6;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding-top: 0;
 }
 
 /* Optional: Add some faint grid or dots for sci-fi feel if needed, but keeping it simple and dark as per image */

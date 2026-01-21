@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>智联星队贪吃蛇</title>
     <link rel="stylesheet" href="{{ url_for('game.static', filename='css/style.css') }}">
+    <script src="{{ url_for('game.static', filename='js/background.js') }}"></script>
     <style>
         /* 内联 SVG 图标样式 */
         .icon-svg {
@@ -27,24 +28,202 @@
             height: 1.5rem;
             fill: white;
         }
+        
+        /* 霓虹灯管容器 */
+        .neon-container {
+            position: relative;
+            width: 95vw;
+            height: 90vh;
+            max-width: 1600px;
+            /* 居中定位 */
+            margin: auto;
+            
+            z-index: 10;
+            overflow: hidden;
+            background: rgba(0, 0, 0, 0.2); /* 增加一点背景深度 */
+            backdrop-filter: blur(5px); /* 毛玻璃效果 */
+            border: 1px solid rgba(0, 255, 255, 0.1);
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.1);
+        }
+        
+        /* 霓虹灯管样式 */
+        .neon-tube {
+            position: absolute;
+            width: 4px; /* 稍微加粗 */
+            height: 4px;
+            background: #00ffff;
+            box-shadow: 0 0 10px #00ffff, 0 0 20px #00ffff, 0 0 30px #00ffff;
+            animation: neonPulse 3s infinite alternate;
+            border-radius: 2px;
+        }
+        
+        .neon-tube-top-left {
+            top: 0;
+            left: 0;
+            width: 100px; /* 长条形 */
+            height: 4px;
+        }
+        .neon-tube-top-left::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100px;
+            background: inherit;
+            box-shadow: inherit;
+            border-radius: inherit;
+        }
+        
+        .neon-tube-top-right {
+            top: 0;
+            right: 0;
+            width: 100px;
+            height: 4px;
+        }
+        .neon-tube-top-right::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 4px;
+            height: 100px;
+            background: inherit;
+            box-shadow: inherit;
+            border-radius: inherit;
+        }
+        
+        .neon-tube-bottom-left {
+            bottom: 0;
+            left: 0;
+            width: 100px;
+            height: 4px;
+        }
+        .neon-tube-bottom-left::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 4px;
+            height: 100px;
+            background: inherit;
+            box-shadow: inherit;
+            border-radius: inherit;
+        }
+        
+        .neon-tube-bottom-right {
+            bottom: 0;
+            right: 0;
+            width: 100px;
+            height: 4px;
+        }
+        .neon-tube-bottom-right::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 4px;
+            height: 100px;
+            background: inherit;
+            box-shadow: inherit;
+            border-radius: inherit;
+        }
+        
+        @keyframes neonPulse {
+            from { opacity: 0.6; box-shadow: 0 0 10px #00ffff, 0 0 20px #00ffff; }
+            to { opacity: 1; box-shadow: 0 0 15px #00ffff, 0 0 30px #00ffff, 0 0 45px #00ffff; }
+        }
+        
+        /* 确保UI层在霓虹灯管之上 */
+        .app-container {
+            position: relative;
+            z-index: 20;
+            width: 100%;
+            height: 100%;
+            max-width: none !important; /* 覆盖style.css */
+            min-height: 0 !important; /* 覆盖style.css */
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* 背景层样式 */
+        .cyberpunk-background {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: -1;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body>
-    <div class="app-container">
+    <!-- 霓虹灯管容器 - 包裹整个游戏界面 -->
+    <div class="neon-container">
+        <!-- 左上角霓虹灯管 -->
+        <div class="neon-tube neon-tube-top-left"></div>
+        <!-- 右上角霓虹灯管 -->
+        <div class="neon-tube neon-tube-top-right"></div>
+        <!-- 左下角霓虹灯管 -->
+        <div class="neon-tube neon-tube-bottom-left"></div>
+        <!-- 右下角霓虹灯管 -->
+        <div class="neon-tube neon-tube-bottom-right"></div>
+        
+        <!-- 游戏界面内容 -->
+        <div class="app-container">
         <!-- 菜单界面 -->
         <div id="menu-screen" class="screen active">
+            <button id="settings-btn" class="settings-btn" title="游戏设置">
+                <svg class="icon-svg" viewBox="0 0 512 512"><path d="M495.9 166.6c3.2 8.7 .5 18.4-6.4 24.6l-43.3 39.4c1.1 8.3 1.7 16.8 1.7 25.4s-.6 17.1-1.7 25.4l43.3 39.4c6.9 6.2 9.6 15.9 6.4 24.6c-4.4 11.9-9.7 23.3-15.8 34.3l-4.7 8.1c-6.6 11-14 21.4-22.1 31.2c-5.9 7.2-15.7 9.6-24.5 6.8l-55.7-17.7c-13.4 10.3-28.2 18.9-44 25.4l-12.5 57.1c-2 9.1-9 16.3-18.2 17.8c-13.8 2.3-28 3.5-42.5 3.5s-28.7-1.2-42.5-3.5c-9.2-1.5-16.2-8.7-18.2-17.8l-12.5-57.1c-15.8-6.5-30.6-15.1-44-25.4L83.1 425.9c-8.8 2.8-18.6 .3-24.5-6.8c-8.1-9.8-15.5-20.2-22.1-31.2l-4.7-8.1c-6.1-11-11.4-22.4-15.8-34.3c-3.2-8.7-.5-18.4 6.4-24.6l43.3-39.4C64.6 273.1 64 264.6 64 256s.6-17.1 1.7-25.4L22.4 191.2c-6.9-6.2-9.6-15.9-6.4-24.6c4.4-11.9 9.7-23.3 15.8-34.3l4.7-8.1c6.6-11 14-21.4 22.1-31.2c5.9-7.2 15.7-9.6 24.5-6.8l55.7 17.7c13.4-10.3 28.2-18.9 44-25.4l12.5-57.1c2-9.1 9-16.3 18.2-17.8C227.3 1.2 241.5 0 256 0s28.7 1.2 42.5 3.5c9.2 1.5 16.2 8.7 18.2 17.8l12.5 57.1c15.8 6.5 30.6 15.1 44 25.4l55.7-17.7c8.8-2.8 18.6-.3 24.5 6.8c8.1 9.8 15.5 20.2 22.1 31.2l4.7 8.1c6.1 11 11.4 22.4 15.8 34.3zM256 336a80 80 0 1 0 0-160 80 80 0 1 0 0 160z"/></svg>
+            </button>
             <header class="menu-header">
                 <div class="logo">
-                    <!-- Snake Icon -->
-                    <svg class="icon-svg" viewBox="0 0 512 512"><path d="M416 32h-64c-17.67 0-32 14.33-32 32s14.33 32 32 32h64c17.67 0 32 14.33 32 32v128c0 17.67-14.33 32-32 32h-64c-17.67 0-32-14.33-32-32s-14.33-32-32-32h-64c-53.02 0-96 42.98-96 96s42.98 96 96 96h64c17.67 0 32 14.33 32 32s-14.33 32-32 32h-64c-88.37 0-160-71.63-160-160 0-88.37 71.63-160 160-160h64c17.67 0 32-14.33 32-32s-14.33-32-32-32h-64c-17.67 0-32-14.33-32-32s14.33-32 32-32h64c53.02 0 96 42.98 96 96s-42.98 96-96 96h-64c-17.67 0-32-14.33-32-32s14.33-32 32-32h64c17.67 0 32 14.33 32 32s-14.33 32-32 32h-64c-53.02 0-96-42.98-96-96s42.98-96 96-96h64c88.37 0 160 71.63 160 160 0 88.37-71.63 160-160 160h-64c-53.02 0-96 42.98-96 96s42.98 96 96 96h64c88.37 0 160-71.63 160-160V96c0-35.35 28.65-64 64-64h64c17.67 0 32-14.33 32-32s-14.33-32-32-32z"/></svg>
+                    <!-- Brand Image -->
+                    <img src="{{ url_for('game.static', filename='images/true.jpg') }}" alt="Logo" class="icon-svg" style="width: 3rem; height: 3rem; border-radius: 50%; object-fit: cover;">
                     <h1>智联星队贪吃蛇</h1>
                 </div>
                 <p class="subtitle">选择你喜欢的游戏模式开始游戏</p>
+                
+                <!-- Global Difficulty Selector -->
+                <div class="menu-difficulty-selector">
+                    <span class="selector-label">特色玩法:</span>
+                    <div class="difficulty-selector">
+                        <button class="diff-btn active" data-diff="no_boundary">无边界</button>
+                        <button class="diff-btn" data-diff="obstacles">障碍</button>
+                        <button class="diff-btn" data-diff="time_limit">限时</button>
+                    </div>
+                </div>
+
+                <!-- Skin Selector -->
+                <div class="menu-difficulty-selector" style="margin-top: 0.5rem;">
+                    <div style="display: grid; grid-template-columns: auto auto; gap: 1rem; align-items: center;">
+                        <span class="selector-label" style="text-align: right;">基础皮肤:</span>
+                        <div class="skin-selector">
+                            <div class="skin-option active" data-skin="default" style="background: #4CAF50;" title="经典绿"></div>
+                            <div class="skin-option" data-skin="blue" style="background: #2196F3;" title="海洋蓝"></div>
+                            <div class="skin-option" data-skin="purple" style="background: #9C27B0;" title="神秘紫"></div>
+                            <div class="skin-option" data-skin="gold" style="background: #FFC107;" title="土豪金"></div>
+                            <div class="skin-option" data-skin="dark" style="background: #212121;" title="暗夜黑"></div>
+                        </div>
+
+                        <span class="selector-label" style="text-align: right;">高级皮肤:</span>
+                        <div class="skin-selector">
+                            <div class="skin-option" data-skin="kuromi" title="宅女琪洛米"></div>
+                            <div class="skin-option" data-skin="orange_soda" title="橘子汽水"></div>
+                            <div class="skin-option" data-skin="flower_fairy" title="鲜花精灵"></div>
+                            <div class="skin-option" data-skin="graceful_lady" title="婉约佳人"></div>
+                            <div class="skin-option" data-skin="moon_goddess" title="月亮女神"></div>
+                        </div>
+                    </div>
+                </div>
             </header>
             
-            <div class="mode-cards">
-                <!-- 单人模式 -->
-                <div class="card mode-card" data-mode="single">
+            <div class="main-content-row">
+                <div class="mode-cards">
+                    <!-- 单人模式 -->
+                    <div class="card mode-card" data-mode="single">
                     <div class="icon-wrapper single-icon">
                         <!-- User Icon -->
                         <svg class="icon-svg" viewBox="0 0 448 512"><path d="M224 256c70.7 0 128-57.3 128-128S294.7 0 224 0 96 57.3 96 128s57.3 128 128 128zm89.6 32h-16.7c-22.2 10.2-46.9 16-72.9 16s-50.6-5.8-72.9-16h-16.7C60.2 288 0 348.2 0 422.4V464c0 26.5 21.5 48 48 48h352c26.5 0 48-21.5 48-48v-41.6c0-74.2-60.2-134.4-134.4-134.4z"/></svg>
@@ -57,7 +236,7 @@
                         <li>无时间限制</li>
                         <li>适合新手练习</li>
                     </ul>
-                    <button class="btn btn-primary start-btn" onclick="startGame('single')">开始单人游戏</button>
+                    <button class="btn btn-primary start-btn" onclick="window.startGame ? startGame('single') : alert('正在加载资源，请稍候...')">开始单人游戏</button>
                 </div>
 
                 <!-- AI对战 -->
@@ -74,7 +253,7 @@
                         <li>策略性更强</li>
                         <li>初始100分制</li>
                     </ul>
-                    <button class="btn btn-purple start-btn" onclick="startGame('ai')">挑战AI对手</button>
+                    <button class="btn btn-purple start-btn" onclick="window.startGame ? startGame('ai') : alert('正在加载资源，请稍候...')">挑战AI对手</button>
                 </div>
 
                 <!-- 多人对战 -->
@@ -91,7 +270,7 @@
                         <li>实时在线对战</li>
                         <li>局域网支持</li>
                     </ul>
-                    <button class="btn btn-blue start-btn" onclick="startGame('multi')">进入多人大厅</button>
+                    <button class="btn btn-blue start-btn" onclick="window.startGame ? startGame('multi') : alert('正在加载资源，请稍候...')">进入多人大厅</button>
                 </div>
             </div>
 
@@ -117,6 +296,7 @@
                         </tbody>
                     </table>
                 </div>
+                </div>
             </div>
         </div>
 
@@ -130,6 +310,19 @@
                             <input type="text" id="lobby-room-input" maxlength="6" placeholder="输入房间号">
                             <button id="generate-room-btn" class="btn-icon" title="随机生成">
                                 <svg class="icon-svg" viewBox="0 0 512 512"><path d="M463.5 224H472c13.3 0 24-10.7 24-24V72c0-9.7-5.8-18.5-14.8-22.2s-19.3-1.7-26.2 5.2L413.4 96.6c-87.6-86.5-228.7-86.2-315.8 1c-87.5 87.5-87.5 229.3 0 316.8s229.3 87.5 316.8 0c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0c-62.5 62.5-163.8 62.5-226.3 0s-62.5-163.8 0-226.3c62.2-62.2 162.7-62.5 225.3-1L327 183c-6.9 6.9-8.9 17.2-5.2 26.2s12.5 14.8 22.2 14.8H463.5z"/></svg>
+                            </button>
+                            <button id="copy-room-btn" class="btn-icon" title="复制房间号">
+                                <svg class="icon-svg" viewBox="0 0 448 512"><path d="M208 0H332.1c12.7 0 24.9 5.1 33.9 14.1l67.9 67.9c9 9 14.1 21.2 14.1 33.9V336c0 26.5-21.5 48-48 48H208c-26.5 0-48-21.5-48-48V48c0-26.5 21.5-48 48-48zM48 128h80v64H64V448H256V416h64v48c0 26.5-21.5 48-48 48H48c-26.5 0-48-21.5-48-48V176c0-26.5 21.5-48 48-48z"/></svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="room-id-container" style="margin-left: 20px;">
+                        <h2>加入房间:</h2>
+                        <div class="room-input-group">
+                            <input type="text" id="join-room-input" maxlength="6" placeholder="输入房间号">
+                            <button id="join-room-btn" class="btn-icon" title="加入房间">
+                                <svg class="icon-svg" viewBox="0 0 640 512"><path d="M96 128a128 128 0 1 1 256 0A128 128 0 1 1 96 128zM0 482.3C0 383.8 79.8 304 178.3 304h91.4C368.2 304 448 383.8 448 482.3c0 16.4-13.3 29.7-29.7 29.7H29.7C13.3 512 0 498.7 0 482.3zM544 384h32v96h96v32H576v96H544V512H448V480h96V384z"/></svg>
                             </button>
                         </div>
                     </div>
@@ -192,30 +385,43 @@
                                 游戏设置
                             </h3>
                             <div class="setting-row">
-                                <label>难度设置</label>
-                                <div class="difficulty-selector small" id="lobby-diff-selector">
-                                    <button class="diff-btn" data-diff="easy">简单</button>
-                                    <button class="diff-btn" data-diff="medium">中等</button>
-                                    <button class="diff-btn" data-diff="hard">困难</button>
-                                    <button class="diff-btn active" data-diff="expert">专家</button>
+                                <label>当前玩法</label>
+                                <div class="current-mode-display" id="lobby-mode-display">
+                                    <span class="mode-text">无边界</span>
                                 </div>
                             </div>
                         </div>
 
                         <div class="lobby-section">
                             <h3>多人对战规则</h3>
-                            <div class="rules-grid">
-                                <div class="rule-col">
-                                    <div class="rule-item"><span>🎯</span> 抢夺食物获得分数 (+10分)</div>
-                                    <div class="rule-item"><span>💸</span> 别人吃到食物时你扣分 (-10分)</div>
-                                    <div class="rule-item"><span>💀</span> 撞墙或撞蛇即淘汰</div>
-                                    <div class="rule-item"><span>⚔️</span> 击杀对手获得奖励 (+50分)</div>
+                            <div class="food-legend">
+                                <div class="food-item">
+                                    <img src="{{ url_for('game.static', filename='images/cabbage.svg') }}" class="food-icon" alt="白菜">
+                                    <div class="food-desc">
+                                        <strong>白菜 (普通)</strong>
+                                        <span>+1 长度, +10 基础分</span>
+                                    </div>
                                 </div>
-                                <div class="rule-col">
-                                    <div class="rule-item"><span>⚡</span> 道具可以改变战局</div>
-                                    <div class="rule-item"><span>🛡️</span> 护盾可以免疫一次碰撞</div>
-                                    <div class="rule-item"><span>💎</span> 双倍分数道具让食物翻倍</div>
-                                    <div class="rule-item"><span>👑</span> 最后存活者获胜</div>
+                                <div class="food-item">
+                                    <img src="{{ url_for('game.static', filename='images/watermelon.svg') }}" class="food-icon" alt="西瓜">
+                                    <div class="food-desc">
+                                        <strong>西瓜 (加分)</strong>
+                                        <span>+1 长度, 分数 ×2 (+20分)</span>
+                                    </div>
+                                </div>
+                                <div class="food-item">
+                                    <img src="{{ url_for('game.static', filename='images/chili.svg') }}" class="food-icon" alt="辣椒">
+                                    <div class="food-desc">
+                                        <strong>辣椒 (缩短)</strong>
+                                        <span>-1 长度 (长度>3生效)</span>
+                                    </div>
+                                </div>
+                                <div class="food-item">
+                                    <img src="{{ url_for('game.static', filename='images/chicken_leg.svg') }}" class="food-icon" alt="鸡腿">
+                                    <div class="food-desc">
+                                        <strong>鸡腿 (无敌)</strong>
+                                        <span>5秒无敌 (穿墙/免疫碰撞)</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -274,10 +480,7 @@
                                 <span class="label">难度</span>
                                 <span class="value" id="current-difficulty">中等</span>
                             </div>
-                            <div class="mini-stat">
-                                <span class="label">食物数</span>
-                                <span class="value" id="food-count">0</span>
-                            </div>
+
                         </div>
                     </div>
 
@@ -325,16 +528,6 @@
                             <div class="mode-display">
                                 <span class="mode-tag active" id="display-mode-single">单人模式</span>
                                 <span class="mode-tag" id="display-mode-ai">AI对战</span>
-                            </div>
-                        </div>
-
-                        <div class="control-group">
-                            <label>游戏难度</label>
-                            <div class="difficulty-selector">
-                                <button class="diff-btn" data-diff="easy">简单</button>
-                                <button class="diff-btn active" data-diff="medium">中等</button>
-                                <button class="diff-btn" data-diff="hard">困难</button>
-                                <button class="diff-btn" data-diff="expert">专家</button>
                             </div>
                         </div>
 
@@ -386,10 +579,45 @@
         </div>
     </div>
 
-    <script src="{{ url_for('game.static', filename='js/utils.js') }}"></script>
-    <script src="{{ url_for('game.static', filename='js/food.js') }}"></script>
-    <script src="{{ url_for('game.static', filename='js/snake.js') }}"></script>
-    <script src="{{ url_for('game.static', filename='js/game.js') }}"></script>
-    <script src="{{ url_for('game.static', filename='js/main.js') }}"></script>
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="settings-modal">
+        <div class="settings-content">
+            <div class="settings-header">
+                <h2>游戏设置</h2>
+            </div>
+            <div class="settings-body">
+                <div class="setting-item">
+                    <span>音效</span>
+                    <label class="switch">
+                        <input type="checkbox" id="sound-toggle" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+            <button class="btn btn-primary" id="close-settings-btn">关闭</button>
+        </div>
+    </div>
+    </div>
+    </div>
+
+    <!-- 赛博朋克动态背景 -->
+    <div id="cyberpunk-background" class="cyberpunk-background"></div>
+
+    <script src="https://cdn.bootcdn.net/ajax/libs/socket.io/4.0.1/socket.io.min.js" defer></script>
+    <script src="{{ url_for('game.static', filename='js/utils.js') }}" defer></script>
+    <script src="{{ url_for('game.static', filename='js/food.js') }}" defer></script>
+    <script src="{{ url_for('game.static', filename='js/snake.js') }}" defer></script>
+    <script src="{{ url_for('game.static', filename='js/game.js') }}" defer></script>
+    <script src="{{ url_for('game.static', filename='js/main.js') }}" defer></script>
+    <script>
+        // 初始化赛博朋克背景
+        document.addEventListener('DOMContentLoaded', function() {
+            const background = new CyberpunkBackground();
+            background.init();
+            
+            // 全局访问
+            window.cyberpunkBackground = background;
+        });
+    </script>
 </body>
 </html>
