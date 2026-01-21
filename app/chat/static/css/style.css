@@ -644,3 +644,148 @@ input:checked + .slider:before {
     height: 60px;
     outline: none;
 }
+
+/* Weather Card */
+.weather-card {
+    background: linear-gradient(135deg, #6e8efb, #a777e3);
+    color: white;
+    padding: 15px;
+    border-radius: 12px;
+    min-width: 200px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.weather-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.9em;
+    opacity: 0.9;
+    margin-bottom: 10px;
+}
+
+.weather-main {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.weather-icon {
+    font-size: 2.5em;
+}
+
+.weather-temp {
+    font-size: 2em;
+    font-weight: bold;
+}
+
+.weather-details {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.9em;
+    border-top: 1px solid rgba(255,255,255,0.3);
+    padding-top: 8px;
+}
+
+/* Scrollbar */
+
+/* Music Gift (Red Packet) */
+.music-gift {
+    background: #d9534f;
+    color: white;
+    padding: 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    width: 220px;
+    transition: transform 0.2s;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+}
+.music-gift:hover {
+    transform: scale(1.02);
+}
+.music-gift-icon {
+    width: 50px;
+    height: 50px;
+    background-image: url('https://tse4.mm.bing.net/th/id/OIP.zvW8jul64wkQJZ5nJAFW4AHaHa?rs=1&pid=ImgDetMain&o=7&rm=3');
+    background-size: cover;
+    background-position: center;
+    border-radius: 4px;
+    margin-right: 10px;
+    flex-shrink: 0;
+}
+.music-gift-content {
+    flex: 1;
+    overflow: hidden;
+}
+.music-gift-title {
+    font-weight: bold;
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.music-gift-desc {
+    font-size: 12px;
+    opacity: 0.9;
+}
+
+/* Music Player Card */
+.music-card {
+    background: linear-gradient(135deg, #1db954, #191414);
+    color: white;
+    padding: 15px;
+    border-radius: 12px;
+    width: 250px;
+    font-family: sans-serif;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+}
+.music-card-cover {
+    width: 100%;
+    height: 150px;
+    background-size: cover;
+    background-position: center;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    background-color: #333;
+    position: relative;
+}
+.music-card-info {
+    margin-bottom: 15px;
+}
+.music-card-title {
+    font-weight: bold;
+    font-size: 16px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 4px;
+}
+.music-card-artist {
+    font-size: 12px;
+    opacity: 0.8;
+}
+.music-card-controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.music-play-btn {
+    background: white;
+    color: black;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    font-size: 18px;
+    transition: transform 0.2s;
+}
+.music-play-btn:hover {
+    transform: scale(1.1);
+}
+
