@@ -29,11 +29,6 @@
         <!-- 头部右侧：用户信息 -->
         <ul class="layui-nav layui-layout-right">
             <li class="layui-nav-item">
-                <a href="{{ url_for('admin.dashboard') }}" title="可视化大屏">
-                    <i class="layui-icon layui-icon-chart-screen"></i> 可视化大屏
-                </a>
-            </li>
-            <li class="layui-nav-item">
                 <a href="javascript:;">
                     <img src="{{ url_for('admin.static', filename='admin/avatars/' + current_admin.avatar) if current_admin and current_admin.avatar else 'https://ui-avatars.com/api/?name=Admin&background=009688&color=fff' }}" class="layui-nav-img" onerror="this.src='https://ui-avatars.com/api/?name=Admin&background=009688&color=fff'">
                     {{ current_admin.nickname or current_admin.username if current_admin else '管理员' }}

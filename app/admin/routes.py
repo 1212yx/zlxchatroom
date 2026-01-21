@@ -3,6 +3,7 @@ from . import admin
 from ..models import AdminUser, User, Room, WSServer, AIModel, ThirdPartyApi, Menu, Role, AIChatSession, AIChatMessage, Message, SensitiveWord, WarningLog, ActivityLog, RoomFile
 from ..extensions import db
 from ..services.ai_analysis import AIAnalysisService
+# from app.chat.routes import broadcast, rooms # Moved to local import to avoid circular dependency
 
 from functools import wraps
 import os
@@ -298,8 +299,58 @@ def get_room(id):
         'description': room.description,
         'creator': room.creator.username if room.creator else 'Unknown',
         'created_at': room.created_at.strftime('%Y-%m-%d'),
-        'member_count': room.members.count()
+        'is_banned': room.is_banned
     }
+
+@admin.route('/rooms/<int:id>/announce', methods=['POST'])
+@admin_required
+def room_announce(id):
+    room = Room.query.get_or_404(id)
+    content = request.form.get('content')
+    if not content:
+        return {'status': 'error', 'message': '公告内容不能为空'}
+    
+    # Save to DB
+    full_content = f"【群公告】{content}"
+    # user_id=None implies System/Anonymous
+    msg = Message(content=full_content, user_id=None, room_id=room.id)
+    db.session.add(msg)
+    db.session.commit()
+    
+    # Broadcast
+    # Note: broadcast needs room name
+    try:
+        from app.chat.routes import broadcast
+        broadcast(room.name, {
+            'type': 'system',
+            'content': full_content,
+            'timestamp': datetime.now().strftime('%H:%M')
+        })
+    except Exception as e:
+        current_app.logger.error(f"Broadcast error: {e}")
+        # Don't fail the request if broadcast fails (e.g. no one online)
+    
+    return {'status': 'success', 'message': '公告已发送'}
+
+@admin.route('/messages')
+@admin_required
+def messages():
+    page = request.args.get('page', 1, type=int)
+    room_id = request.args.get('room_id', type=int)
+    keyword = request.args.get('keyword')
+    
+    query = Message.query
+    
+    if room_id:
+        query = query.filter_by(room_id=room_id)
+    if keyword:
+        query = query.filter(Message.content.contains(keyword))
+        
+    pagination = query.order_by(Message.timestamp.desc()).paginate(page=page, per_page=20, error_out=False)
+    messages = pagination.items
+    rooms = Room.query.all()
+    
+    return render_template('admin/messages.html', messages=messages, pagination=pagination, rooms=rooms, current_room_id=room_id, keyword=keyword)
 
 @admin.route('/profile', methods=['GET', 'POST'])
 @admin_required
@@ -573,9 +624,9 @@ def inject_menus():
         return {}
         
     # If super admin, show all visible menus
-    if current_admin.is_super:
-        menus = Menu.query.filter_by(parent_id=None, is_visible=True).order_by(Menu.order).all()
-        return {'admin_menus': menus, 'current_admin': current_admin}
+    # if current_admin.is_super:
+    #     menus = Menu.query.filter_by(parent_id=None, is_visible=True).order_by(Menu.order).all()
+    #     return {'admin_menus': menus, 'current_admin': current_admin}
     
     # Otherwise, filter by roles
     # Collect all accessible menu IDs
@@ -744,28 +795,34 @@ def role_add():
 @admin.route('/roles/<int:id>', methods=['GET'])
 @admin_required
 def get_role(id):
-    role = Role.query.get_or_404(id)
-    # Get assigned menu IDs
-    menu_ids = [m.id for m in role.menus]
-    return {
-        'id': role.id,
-        'name': role.name,
-        'description': role.description,
-        'menu_ids': menu_ids
-    }
+    try:
+        role = Role.query.get_or_404(id)
+        # Get assigned menu IDs
+        menu_ids = [m.id for m in role.menus]
+        return {
+            'id': role.id,
+            'name': role.name,
+            'description': role.description,
+            'menu_ids': menu_ids
+        }
+    except Exception as e:
+        current_app.logger.error(f"Error in get_role: {e}")
+        return {'status': 'error', 'message': f'Failed to fetch role: {str(e)}'}, 500
 
 @admin.route('/roles/<int:id>/edit', methods=['POST'])
 @admin_required
 def role_edit(id):
     role = Role.query.get_or_404(id)
-    role.name = request.form.get('name')
-    role.description = request.form.get('description')
     
-    # Update menu permissions
-    menu_ids = request.form.getlist('menu_ids[]')
-    # If using application/json
-    if not menu_ids and request.json:
-        menu_ids = request.json.get('menu_ids', [])
+    if request.is_json:
+        data = request.get_json()
+        role.name = data.get('name')
+        role.description = data.get('description')
+        menu_ids = data.get('menu_ids', [])
+    else:
+        role.name = request.form.get('name')
+        role.description = request.form.get('description')
+        menu_ids = request.form.getlist('menu_ids[]')
         
     # Clear existing menus and add new ones
     role.menus = []
@@ -775,8 +832,12 @@ def role_edit(id):
             if menu:
                 role.menus.append(menu)
     
-    db.session.commit()
-    return {'status': 'success', 'message': '角色更新成功'}
+    try:
+        db.session.commit()
+        return {'status': 'success', 'message': '角色更新成功'}
+    except Exception as e:
+        db.session.rollback()
+        return {'status': 'error', 'message': f'更新失败: {str(e)}'}
 
 @admin.route('/roles/<int:id>/delete', methods=['POST'])
 @admin_required

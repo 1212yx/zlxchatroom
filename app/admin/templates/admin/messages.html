@@ -1,0 +1,119 @@
+{% extends "admin/layout.html" %}
+
+{% block breadcrumb %}系统管理 / 群聊天记录{% endblock %}
+
+{% block content %}
+<div class="layui-card">
+    <div class="layui-card-header">
+        消息筛选
+    </div>
+    <div class="layui-card-body">
+        <form class="layui-form" action="{{ url_for('admin.messages') }}" method="GET">
+            <div class="layui-form-item">
+                <div class="layui-inline">
+                    <label class="layui-form-label">房间</label>
+                    <div class="layui-input-inline">
+                        <select name="room_id">
+                            <option value="">全部</option>
+                            {% for room in rooms %}
+                            <option value="{{ room.id }}" {% if current_room_id == room.id %}selected{% endif %}>{{ room.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="layui-inline">
+                    <label class="layui-form-label">关键词</label>
+                    <div class="layui-input-inline">
+                        <input type="text" name="keyword" placeholder="搜索内容" autocomplete="off" class="layui-input" value="{{ keyword if keyword else '' }}">
+                    </div>
+                </div>
+                <div class="layui-inline">
+                    <button class="layui-btn" lay-submit lay-filter="search">搜索</button>
+                    <a href="{{ url_for('admin.messages') }}" class="layui-btn layui-btn-primary">重置</a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="layui-card">
+    <div class="layui-card-header">消息列表</div>
+    <div class="layui-card-body">
+        <table class="layui-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>发送时间</th>
+                    <th>发送者</th>
+                    <th>房间</th>
+                    <th>内容</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for msg in messages %}
+                <tr>
+                    <td>{{ msg.id }}</td>
+                    <td>{{ msg.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                    <td>
+                        {% if msg.author %}
+                            {{ msg.author.username }} ({{ msg.author.nickname }})
+                        {% else %}
+                            <span class="layui-badge layui-bg-gray">系统/未知</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if msg.room %}
+                            {{ msg.room.name }}
+                        {% else %}
+                            <span class="layui-badge layui-bg-gray">未知</span>
+                        {% endif %}
+                    </td>
+                    <td style="word-break: break-all;">{{ msg.content }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        
+        <!-- 分页 -->
+        <div id="pagination" style="text-align: center; margin-top: 20px;" 
+             data-total="{{ pagination.total }}" 
+             data-page="{{ pagination.page }}" 
+             data-limit="{{ pagination.per_page }}"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+layui.use(['laypage', 'form'], function(){
+    var laypage = layui.laypage;
+    var form = layui.form;
+    var $ = layui.$;
+    
+    // 获取分页数据
+    var total = parseInt($('#pagination').data('total'));
+    var curr = parseInt($('#pagination').data('page'));
+    var limit = parseInt($('#pagination').data('limit'));
+
+    // 分页
+    laypage.render({
+        elem: 'pagination',
+        count: total,
+        limit: limit,
+        curr: curr,
+        layout: ['count', 'prev', 'page', 'next', 'skip'],
+        jump: function(obj, first){
+            if(!first){
+                // 构建查询参数
+                var url = "{{ url_for('admin.messages') }}?page=" + obj.curr;
+                var roomId = $('select[name="room_id"]').val();
+                var keyword = $('input[name="keyword"]').val();
+                if(roomId) url += '&room_id=' + roomId;
+                if(keyword) url += '&keyword=' + encodeURIComponent(keyword);
+                location.href = url;
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

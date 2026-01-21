@@ -152,6 +152,17 @@ class Menu(db.Model):
     def __repr__(self):
         return f'<Menu {self.name}>'
 
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'icon': self.icon,
+            'url': self.url,
+            'parent_id': self.parent_id,
+            'order': self.order,
+            'is_visible': self.is_visible
+        }
+
 class Role(db.Model):
     __tablename__ = 'roles'
     id = db.Column(db.Integer, primary_key=True)

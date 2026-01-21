@@ -28,6 +28,9 @@
                     <button class="layui-btn layui-btn-sm layui-btn-normal btn-view-room" data-id="{{ room.id }}" title="详情" style="margin: 0 4px;">
                         <i class="layui-icon layui-icon-file"></i>
                     </button>
+                    <button class="layui-btn layui-btn-sm layui-btn-warm btn-announce" data-id="{{ room.id }}" data-name="{{ room.name }}" title="发送群公告" style="margin: 0 4px; background-color: #FFB800;">
+                        <i class="layui-icon layui-icon-speaker"></i>
+                    </button>
                     <button class="layui-btn layui-btn-sm layui-btn-warm btn-toggle-ban" data-id="{{ room.id }}" title="{{ '解封' if room.is_banned else '封禁' }}" style="margin: 0 4px;">
                         <i class="layui-icon {{ 'layui-icon-ok-circle' if room.is_banned else 'layui-icon-close-circle' }}"></i>
                     </button>
@@ -96,6 +99,27 @@ layui.use(['laypage', 'layer', 'table'], function(){
                     ]]
                 });
             }
+        });
+    });
+
+    // 发送群公告
+    $(document).on('click', '.btn-announce', function(){
+        var id = $(this).data('id');
+        var name = $(this).data('name');
+        
+        layer.prompt({
+            formType: 2,
+            title: '给 ' + name + ' 发送群公告',
+            area: ['400px', '150px']
+        }, function(value, index, elem){
+            $.post('/admin/rooms/' + id + '/announce', {content: value}, function(res){
+                if(res.status === 'success'){
+                    layer.msg(res.message, {icon: 1});
+                    layer.close(index);
+                } else {
+                    layer.msg(res.message, {icon: 2});
+                }
+            });
         });
     });
 

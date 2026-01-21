@@ -20,7 +20,7 @@
                 <tr>
                     <th>ID</th>
                     <th>角色名称</th>
-                    <th>描述</th>
+                    <th>关联菜单数</th>
                     <th>操作</th>
                 </tr>
             </thead>
@@ -29,7 +29,17 @@
                 <tr>
                     <td>{{ role.id }}</td>
                     <td>{{ role.name }}</td>
-                    <td>{{ role.description }}</td>
+                    <td>
+                        <span class="layui-badge layui-bg-gray">{{ role.menus|length }}</span>
+                        {% if role.menus %}
+                        <span class="layui-badge-rim btn-view-menus" 
+                              title="点击查看关联菜单" 
+                              style="cursor: pointer;"
+                              data-menus='[{% for m in role.menus %}{"id": {{ m.id }}, "name": {{ m.name|tojson }}}{% if not loop.last %},{% endif %}{% endfor %}]'>
+                            查看关联菜单
+                        </span>
+                        {% endif %}
+                    </td>
                     <td>
                         <button class="layui-btn layui-btn-xs layui-btn-normal btn-edit" data-id="{{ role.id }}">编辑/权限</button>
                         <button class="layui-btn layui-btn-xs layui-btn-danger btn-delete" data-id="{{ role.id }}">删除</button>
@@ -94,46 +104,90 @@ layui.use(['layer', 'form'], function(){
     var form = layui.form;
     var $ = layui.$;
     
+    // View Menus
+    $('.btn-view-menus').click(function(){
+        var menus = $(this).data('menus');
+        var content = '<ul class="layui-timeline" style="padding: 20px;">';
+        
+        // Simple list or structured? Let's just list names for now
+        // Or reconstruct hierarchy if possible, but flat list is safer
+        menus.forEach(function(m){
+             content += '<li class="layui-timeline-item"><i class="layui-icon layui-timeline-axis"></i><div class="layui-timeline-content layui-text"><h3 class="layui-timeline-title">' + m.name + '</h3></div></li>';
+        });
+        content += '</ul>';
+        
+        layer.open({
+            type: 1,
+            title: '关联菜单列表',
+            area: ['400px', '500px'],
+            content: content,
+            shadeClose: true
+        });
+    });
+
+    // Unified Submit Handler
+    form.on('submit(submitRole)', function(data){
+        var $form = $(data.form);
+        var menu_ids = [];
+        // Scope search to the current form to ensure we get the right checkboxes
+        $form.find('#menu-tree input[type="checkbox"]:checked').each(function(){
+            menu_ids.push($(this).val());
+        });
+        
+        // Use .attr() to retrieve the url reliably
+        var url = $form.attr('data-url');
+        if(!url) {
+            layer.msg('Configuration Error: No Submit URL found', {icon: 2});
+            return false;
+        }
+        
+        $.ajax({
+            url: url,
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                name: $form.find('input[name="name"]').val(),
+                description: $form.find('textarea[name="description"]').val(),
+                menu_ids: menu_ids
+            }),
+            success: function(res){
+                if(res.status === 'success'){
+                    layer.msg(res.message, {icon: 1, time: 1000}, function(){
+                        layer.closeAll();
+                        location.reload();
+                    });
+                } else {
+                    layer.msg(res.message, {icon: 2});
+                }
+            },
+            error: function(xhr){
+                var msg = 'Operation Failed';
+                if(xhr.responseJSON && xhr.responseJSON.message) {
+                    msg = xhr.responseJSON.message;
+                }
+                layer.msg(msg, {icon: 2});
+            }
+        });
+        return false;
+    });
+
     // Add
     $('#btn-add').click(function(){
         // Reset form
         $('form[lay-filter="roleForm"]')[0].reset();
-        $('input[name="menu_ids[]"]').prop('checked', false);
-        form.render();
+        $('form[lay-filter="roleForm"] input[type="hidden"]').val('');
+        $('form[lay-filter="roleForm"] input[type="checkbox"]').prop('checked', false);
+        
+        // Set URL using .attr() for robustness
+        $('form[lay-filter="roleForm"]').attr('data-url', '/admin/roles/add');
         
         layer.open({
             type: 1,
             title: '新增角色',
             area: ['600px', '600px'],
             content: $('#roleForm'),
-            success: function(){
-                form.on('submit(submitRole)', function(data){
-                    var menu_ids = [];
-                    // We must select checked checkboxes manually because layui form submit handling of array names can be tricky
-                    $('#menu-tree input[type="checkbox"]:checked').each(function(){
-                        menu_ids.push($(this).val());
-                    });
-                    
-                    $.ajax({
-                        url: '/admin/roles/add',
-                        type: 'POST',
-                        contentType: 'application/json',
-                        data: JSON.stringify({
-                            name: $('input[name="name"]').val(),
-                            description: $('textarea[name="description"]').val(),
-                            menu_ids: menu_ids
-                        }),
-                        success: function(res){
-                            if(res.status === 'success'){
-                                layer.msg(res.message);
-                                setTimeout(function(){ location.reload(); }, 1000);
-                            } else {
-                                layer.msg(res.message, {icon: 2});
-                            }
-                        }
-                    });
-                    return false;
-                });
+            success: function(layero, index){
+                form.render();
             }
         });
     });
@@ -141,54 +195,41 @@ layui.use(['layer', 'form'], function(){
     // Edit
     $('.btn-edit').click(function(){
         var id = $(this).data('id');
+        
+        // Reset form first
+        $('form[lay-filter="roleForm"]')[0].reset();
+        $('form[lay-filter="roleForm"] input[type="checkbox"]').prop('checked', false);
+        
+        // Set URL using .attr()
+        $('form[lay-filter="roleForm"]').attr('data-url', '/admin/roles/' + id + '/edit');
+
         $.get('/admin/roles/' + id, function(res){
-            $('input[name="name"]').val(res.name);
-            $('textarea[name="description"]').val(res.description);
-            
-            // Reset checkboxes
-            $('input[name="menu_ids[]"]').prop('checked', false);
-            
-            // Check assigned menus
-            if(res.menu_ids){
-                res.menu_ids.forEach(function(mid){
-                    $('input[value="' + mid + '"]').prop('checked', true);
-                });
-            }
-            
-            form.render();
-            
-            layer.open({
-                type: 1,
-                title: '编辑角色',
-                area: ['600px', '600px'],
-                content: $('#roleForm'),
-                success: function(){
-                    form.on('submit(submitRole)', function(data){
-                        var menu_ids = [];
-                        $('#menu-tree input[type="checkbox"]:checked').each(function(){
-                            menu_ids.push($(this).val());
-                        });
-                        
-                        $.ajax({
-                            url: '/admin/roles/' + id + '/edit',
-                            type: 'POST',
-                            contentType: 'application/json',
-                            data: JSON.stringify({
-                                name: $('input[name="name"]').val(),
-                                description: $('textarea[name="description"]').val(),
-                                menu_ids: menu_ids
-                            }),
-                            success: function(res){
-                                if(res.status === 'success'){
-                                    layer.msg(res.message);
-                                    setTimeout(function(){ location.reload(); }, 1000);
-                                }
-                            }
-                        });
-                        return false;
+            // The backend returns the role object directly, not wrapped in status/message
+            if(res && res.id){
+                $('form[lay-filter="roleForm"] input[name="name"]').val(res.name);
+                $('form[lay-filter="roleForm"] textarea[name="description"]').val(res.description);
+                
+                // Check assigned menus
+                if(res.menu_ids){
+                    res.menu_ids.forEach(function(mid){
+                        $('form[lay-filter="roleForm"] input[value="' + mid + '"]').prop('checked', true);
                     });
                 }
-            });
+                
+                layer.open({
+                    type: 1,
+                    title: '编辑角色',
+                    area: ['600px', '600px'],
+                    content: $('#roleForm'),
+                    success: function(layero, index){
+                        form.render();
+                    }
+                });
+            } else {
+                layer.msg('Failed to load role data', {icon: 2});
+            }
+        }).fail(function(){
+             layer.msg('Failed to load role data', {icon: 2});
         });
     });
     
