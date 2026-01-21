@@ -87,6 +87,18 @@ def join_game(data):
     # Notify self of success
     emit('join_success', {'room': room, 'role': role, 'count': len(rooms_data[room])})
 
+@socketio.on('start_game', namespace='/game')
+def start_game(data):
+    room = data.get('room')
+    if room and room in rooms_data:
+        # Verify if requester is host
+        player = next((p for p in rooms_data[room] if p['sid'] == request.sid), None)
+        if player and player['role'] == 'host':
+            print(f"Game started in room {room} by {player['name']}")
+            emit('game_start', {'room': room}, room=room)
+        else:
+            emit('error', {'msg': 'Only host can start the game'})
+
 @socketio.on('leave_game', namespace='/game')
 def leave_game(data):
     room = data.get('room')

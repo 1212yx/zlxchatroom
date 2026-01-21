@@ -59,7 +59,7 @@
         </div>
         
         <!-- Main Chat -->
-        <div class="main-chat">
+        <div class="main-chat" id="mainChat">
             <div class="chat-top-bar">
                 <div style="font-weight: bold;">{{ server }}</div>
                 <div>
@@ -88,6 +88,29 @@
                 <div style="text-align: right; margin-top: 5px;">
                     <button class="btn-login" id="sendBtn" style="width: auto; padding: 5px 20px; font-size: 14px;">发送</button>
                 </div>
+            </div>
+        </div>
+
+        <!-- Game Interface -->
+        <div class="game-interface" id="gameInterface" style="display: none; flex: 1; flex-direction: column; background: #0d1117;">
+             <div class="chat-top-bar">
+                <div style="font-weight: bold;">游戏中心</div>
+            </div>
+            <div style="flex: 1; display: flex; justify-content: center; align-items: center; color: #8b949e; flex-direction: column;">
+                <i class="fas fa-gamepad" style="font-size: 48px; margin-bottom: 20px;"></i>
+                <h3>游戏模块开发中...</h3>
+                <p>这里将集成精彩的游戏内容</p>
+            </div>
+        </div>
+
+        <!-- Friend Interface -->
+        <div class="friend-interface" id="friendInterface" style="display: none; flex: 1; flex-direction: column; background: #0d1117;">
+             <div class="chat-top-bar">
+                <div style="font-weight: bold;">好友列表</div>
+            </div>
+            <div style="flex: 1; display: flex; justify-content: center; align-items: center; color: #8b949e; flex-direction: column;">
+                <i class="fas fa-user-friends" style="font-size: 48px; margin-bottom: 20px;"></i>
+                <h3>好友功能即将上线</h3>
             </div>
         </div>
     </div>
@@ -637,11 +660,27 @@
             // Add active to clicked item
             $(element).addClass('active');
 
-            if (tabName === 'settings') {
+            // Hide all main interfaces first
+            $('#mainChat').hide();
+            $('#gameInterface').hide();
+            $('#friendInterface').hide();
+            
+            // Handle specific tab logic
+            if (tabName === 'chat') {
+                $('#mainChat').css('display', 'flex');
+                $('.settings-sidebar').removeClass('active');
+            } else if (tabName === 'game') {
+                $('#gameInterface').css('display', 'flex');
+                $('.settings-sidebar').removeClass('active');
+            } else if (tabName === 'friend') {
+                $('#friendInterface').css('display', 'flex');
+                $('.settings-sidebar').removeClass('active');
+            } else if (tabName === 'settings') {
+                // For settings, we might want to keep the underlying view or default to chat
+                // For now, let's show chat as background
+                $('#mainChat').css('display', 'flex'); 
                 $('.settings-sidebar').addClass('active');
                 $('.user-sidebar').removeClass('active');
-            } else {
-                $('.settings-sidebar').removeClass('active');
             }
         }
 

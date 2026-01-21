@@ -166,11 +166,13 @@ select.form-control {
     line-height: 24px;
     height: 34px; /* Match reduced input height */
     background-color: transparent !important;
-    padding: 5px 80px !important; /* Match input padding */
+    padding: 5px 40px 5px 40px !important; /* Reduced padding from 80px to 40px */
     color: #ffffff !important; /* Pure white color for valid selection */
     text-align: center;
     text-align-last: center; /* Ensure selected text is centered */
     width: 100%;
+    position: relative; /* Ensure z-index works */
+    z-index: 5; /* Ensure it is above icons */
 }
 
 select.form-control:invalid {

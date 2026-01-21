@@ -27,6 +27,18 @@ try {
 
         socket.on('join_success', (data) => {
             console.log('Joined room successfully:', data);
+            isJoined = true;
+            
+            // Update button state (Initial wait state, will be updated by player list)
+            const startBtn = document.querySelector('.start-game-btn');
+            if(startBtn) {
+                startBtn.innerHTML = '等待房主开始...';
+                startBtn.disabled = true;
+            }
+        });
+
+        socket.on('game_start', (data) => {
+            console.log('Game starting:', data);
             // Transition to game
             lobbyScreen.classList.remove('active');
             setTimeout(() => {
@@ -35,8 +47,13 @@ try {
                 void gameScreen.offsetWidth;
                 gameScreen.classList.add('active');
                 
-                game.init('multi', currentDifficulty);
+                game.init('multi', currentDifficulty, currentSkin);
                 updateModeDisplay('multi');
+                
+                // Stop menu music
+                if (window.audioManager) {
+                    window.audioManager.stop('login');
+                }
             }, 500);
         });
 
@@ -80,6 +97,22 @@ try {
                     
                     playerList.appendChild(item);
                 });
+                
+                // Update Start Button State based on Role
+                const myPlayer = data.players.find(p => p.sid === socket.id);
+                const startBtn = document.querySelector('.start-game-btn');
+                if (myPlayer && startBtn) {
+                    if (myPlayer.role === 'host') {
+                        startBtn.innerHTML = `
+                        <svg class="icon-svg" viewBox="0 0 448 512" style="width: 1em; height: 1em; vertical-align: -0.125em; margin-right: 5px;"><path d="M424.4 214.7L72.4 6.6C43.8-10.3 0 6.1 0 47.9V464c0 37.5 40.7 60.1 72.4 41.3l352-208c31.4-18.5 31.5-64.1 0-82.6z"/></svg>
+                        开始游戏
+                        `;
+                        startBtn.disabled = false;
+                    } else {
+                        startBtn.innerHTML = '等待房主开始...';
+                        startBtn.disabled = true;
+                    }
+                }
             }
         });
     } else {
@@ -106,6 +139,7 @@ try {
 }
 
 let currentRoomId = null;
+let isJoined = false;
 let currentMode = 'single';
 let currentDifficulty = 'no_boundary';
 let currentSkin = 'default';
@@ -362,13 +396,34 @@ function startMultiplayerGame() {
         alert("请输入或生成房间号");
         return;
     }
-    currentRoomId = roomInput.value;
     
-    // Join the socket room
-    socket.emit('join_game', { room: currentRoomId });
+    // If not joined or room changed
+    if (!isJoined || currentRoomId !== roomInput.value) {
+        currentRoomId = roomInput.value;
+        socket.emit('join_game', { room: currentRoomId });
+    } else {
+        // Already joined, try to start
+        socket.emit('start_game', { room: currentRoomId });
+    }
 }
 
 function leaveLobby() {
+    isJoined = false;
+    if (currentRoomId) {
+        socket.emit('leave_game', { room: currentRoomId });
+        currentRoomId = null;
+    }
+    
+    // Reset Button
+    const startBtn = document.querySelector('.start-game-btn');
+    if(startBtn) {
+        startBtn.innerHTML = `
+        <svg class="icon-svg" viewBox="0 0 448 512" style="width: 1em; height: 1em; vertical-align: -0.125em; margin-right: 5px;"><path d="M424.4 214.7L72.4 6.6C43.8-10.3 0 6.1 0 47.9V464c0 37.5 40.7 60.1 72.4 41.3l352-208c31.4-18.5 31.5-64.1 0-82.6z"/></svg>
+        开始游戏
+        `;
+        startBtn.disabled = false;
+    }
+
     lobbyScreen.classList.remove('active');
     setTimeout(() => {
         lobbyScreen.classList.add('hidden');
@@ -419,7 +474,8 @@ function exitGame() {
         
         // Play menu music
         if (window.audioManager) {
-            window.audioManager.play('login');
+            const p = window.audioManager.play('login');
+            if (p) p.catch(() => {});
         }
         
         // Update Leaderboard
@@ -546,7 +602,8 @@ window.addEventListener('load', () => {
                 console.log("Auto-play prevented. Waiting for user interaction.");
                 // Add one-time listener to start audio on first interaction
                 const startAudio = () => {
-                    window.audioManager.play('login');
+                    const p = window.audioManager.play('login');
+                    if (p) p.catch(() => {});
                     document.removeEventListener('click', startAudio);
                     document.removeEventListener('keydown', startAudio);
                 };

@@ -2,10 +2,12 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>智联星队贪吃蛇</title>
-    <link rel="stylesheet" href="{{ url_for('game.static', filename='css/style.css') }}">
-    <script src="{{ url_for('game.static', filename='js/background.js') }}"></script>
+    <link rel="icon" href="{{ url_for('game.static', filename='images/watermelon.svg') }}">
+    <link rel="stylesheet" href="{{ url_for('game.static', filename='css/style.css', v='2.2') }}">
+    <script src="{{ url_for('game.static', filename='js/background.js', v='2.2') }}"></script>
     <style>
         /* 内联 SVG 图标样式 */
         .icon-svg {
@@ -604,11 +606,11 @@
     <div id="cyberpunk-background" class="cyberpunk-background"></div>
 
     <script src="https://cdn.bootcdn.net/ajax/libs/socket.io/4.0.1/socket.io.min.js" defer></script>
-    <script src="{{ url_for('game.static', filename='js/utils.js') }}" defer></script>
-    <script src="{{ url_for('game.static', filename='js/food.js') }}" defer></script>
-    <script src="{{ url_for('game.static', filename='js/snake.js') }}" defer></script>
-    <script src="{{ url_for('game.static', filename='js/game.js') }}" defer></script>
-    <script src="{{ url_for('game.static', filename='js/main.js') }}" defer></script>
+    <script src="{{ url_for('game.static', filename='js/utils.js', v='2.2') }}" defer></script>
+    <script src="{{ url_for('game.static', filename='js/food.js', v='2.2') }}" defer></script>
+    <script src="{{ url_for('game.static', filename='js/snake.js', v='2.2') }}" defer></script>
+    <script src="{{ url_for('game.static', filename='js/game.js', v='2.2') }}" defer></script>
+    <script src="{{ url_for('game.static', filename='js/main.js', v='2.2') }}" defer></script>
     <script>
         // 初始化赛博朋克背景
         document.addEventListener('DOMContentLoaded', function() {

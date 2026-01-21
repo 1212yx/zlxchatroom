@@ -1,3 +1,6 @@
+import eventlet
+eventlet.monkey_patch()
+
 import os
 import json
 from app import create_app, socketio
@@ -23,4 +26,4 @@ if __name__ == '__main__':
     host = config.get('host', '127.0.0.1')
     port = config.get('port', 8090)
     print(f"Starting server at {host}:{port}")
-    socketio.run(app, debug=True, use_reloader=True, host=host, port=port)
+    socketio.run(app, debug=False, use_reloader=False, host=host, port=port)

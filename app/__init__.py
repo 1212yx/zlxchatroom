@@ -34,4 +34,8 @@ def create_app(config_name='default'):
     def index():
         return "Welcome to ZLX Chatroom System! Please navigate to /chat, /bot, /game, or /admin."
 
+    @app.route('/favicon.ico')
+    def favicon():
+        return "", 204
+
     return app

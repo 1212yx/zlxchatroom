@@ -1,42 +1,81 @@
 class AudioManager {
     constructor() {
-        this.sounds = {
-            click: this._createAudio('/game/static/mp4/click.mp4'),
-            login: this._createAudio('/game/static/mp4/menu_bgm.mp4', true, 0.5),
-            bgm: this._createAudio('/game/static/mp4/game_bgm.mp4', true, 0.5),
-            win: this._createAudio('/game/static/mp4/win.mp4'),
-            fail: this._createAudio('/game/static/mp4/fail.mp4')
+        this.sounds = {};
+        this.pendingPlay = null; // Track pending play requests
+
+        const sources = {
+            click: { src: '/game/static/mp4/click.mp4?v=2.2', loop: false, volume: 1.0 },
+            login: { src: '/game/static/mp4/menu_bgm.mp4?v=2.2', loop: true, volume: 0.5 },
+            bgm: { src: '/game/static/mp4/game_bgm.mp4?v=2.2', loop: true, volume: 0.5 },
+            win: { src: '/game/static/mp4/win.mp4?v=2.2', loop: false, volume: 1.0 },
+            fail: { src: '/game/static/mp4/fail.mp4?v=2.2', loop: false, volume: 1.0 }
         };
+
+        // Initialize Audio objects
+        Object.keys(sources).forEach(key => {
+            const config = sources[key];
+            const audio = new Audio();
+            audio.loop = config.loop;
+            audio.volume = config.volume;
+            // Don't set src yet, wait for fetch
+            this.sounds[key] = audio;
+            this._loadSound(key, config.src);
+        });
         
         this.muted = localStorage.getItem('snakeMuted') === 'true';
         this.updateMuteState();
     }
 
-    _createAudio(src, loop = false, volume = 1.0) {
-        const audio = new Audio();
-        audio.src = src;
-        audio.preload = 'none'; // Use none to avoid ERR_ABORTED on load
-        audio.loop = loop;
-        audio.volume = volume;
-        
-        audio.onerror = (e) => {
-            console.warn(`Error loading audio ${src}:`, audio.error);
-        };
-        
-        return audio;
+    async _loadSound(key, src) {
+        try {
+            const response = await fetch(src);
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            
+            const sound = this.sounds[key];
+            if (sound) {
+                sound.src = url;
+                // If this sound was pending to play, play it now
+                if (this.pendingPlay === key) {
+                    this.pendingPlay = null;
+                    const p = this.play(key);
+                    if (p) p.catch(e => console.debug('Autoplay prevented during load:', e));
+                }
+            }
+        } catch (e) {
+            console.warn(`Error loading audio ${src}:`, e);
+            // Fallback: try setting src directly if fetch fails
+            if (this.sounds[key] && !this.sounds[key].src) {
+                this.sounds[key].src = src;
+            }
+        }
     }
 
     play(name) {
         if (this.muted) return;
         const sound = this.sounds[name];
         if (sound) {
-            // Always reset to start to ensure clean playback and avoid resume issues
-            sound.currentTime = 0;
+            // Check if src is ready
+            if (!sound.src) {
+                console.log(`Audio ${name} not ready yet, queuing...`);
+                this.pendingPlay = name;
+                return;
+            }
+
+            // For looping sounds (BGM), if already playing, do nothing
+            if (sound.loop && !sound.paused) {
+                return Promise.resolve();
+            }
+
+            // For one-shot sounds or if BGM is stopped, reset and play
+            // Only reset if not already at 0 to avoid triggering unnecessary seeks/aborts
+            if (sound.currentTime !== 0) {
+                sound.currentTime = 0;
+            }
             
-            sound.play().catch(e => {
-                // Auto-play policy might block this
-                console.warn("Audio play failed for " + name + ":", e);
-            });
+            // Return the promise directly so caller can handle errors (like autoplay policy)
+            return sound.play();
         }
     }
 
@@ -83,7 +122,7 @@ document.addEventListener('click', (e) => {
         e.target.classList.contains('skin-option') ||
         e.target.classList.contains('diff-btn') ||
         e.target.tagName === 'A') {
-        audioManager.play('click');
+        audioManager.play('click').catch(() => {}); // Catch potential errors to avoid console noise
     }
 });
 
@@ -110,7 +149,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Play Login sound on first interaction if on menu
     const playLogin = () => {
         if (document.getElementById('menu-screen').classList.contains('active')) {
-            audioManager.play('login');
+            const p = audioManager.play('login');
+            if (p) p.catch(() => {});
         }
         document.removeEventListener('click', playLogin);
     };
@@ -267,7 +307,8 @@ class Game {
 
     run() {
         if (this.isRunning) return;
-        window.audioManager.play('bgm');
+        const p = window.audioManager.play('bgm');
+        if (p) p.catch(e => console.warn('Game BGM play failed:', e));
         this.isRunning = true;
         this.overlay.classList.add('hidden');
         this.lastTime = performance.now();
