@@ -2,7 +2,7 @@ from flask import render_template, request, session, redirect, url_for
 from . import chat
 from app.extensions import sock, db
 from app.models import WSServer, db
-from app.models import User, Room, Message, SensitiveWord, WarningLog
+from app.models import User, Room, Message, SensitiveWord, WarningLog, ActivityLog
 import json
 from datetime import datetime
 from app.bot.core import get_bot_response
@@ -86,6 +86,15 @@ def websocket(ws):
     room = None
     room_obj = None
     
+    # Log Connect
+    if user_obj:
+        try:
+            log = ActivityLog(user_id=user_obj.id, username=user_obj.username, action='login', content='上线')
+            db.session.add(log)
+            db.session.commit()
+        except:
+            db.session.rollback()
+    
     try:
         # Wait for first message which should be join
         data = ws.receive()
@@ -148,6 +157,14 @@ def websocket(ws):
                     'timestamp': datetime.now().strftime('%H:%M')
                 })
                 
+                # Log Join
+                try:
+                    log = ActivityLog(user_id=user_obj.id if user_obj else None, username=user, action='join_room', content=room)
+                    db.session.add(log)
+                    db.session.commit()
+                except:
+                    db.session.rollback()
+                
                 # Broadcast updated user list
                 broadcast_user_list(room)
                 
@@ -195,6 +212,14 @@ def websocket(ws):
                                 db_msg = Message(content=content, user_id=user_obj.id, room_id=room_obj.id)
                                 db.session.add(db_msg)
                                 db.session.commit()
+                                
+                                # Log Chat Activity
+                                try:
+                                    log = ActivityLog(user_id=user_obj.id, username=user, action='chat', content=content[:50]) # limit content length
+                                    db.session.add(log)
+                                    db.session.commit()
+                                except:
+                                    db.session.rollback()
                             
                             broadcast(room, {
                                 'type': 'chat',
@@ -357,6 +382,18 @@ def websocket(ws):
     except Exception as e:
         print(f"WS Error: {e}")
     finally:
+        # Log Leave/Logout
+        if user:
+            try:
+                if room:
+                    log_leave = ActivityLog(user_id=user_obj.id if user_obj else None, username=user, action='leave_room', content=room)
+                    db.session.add(log_leave)
+                log_out = ActivityLog(user_id=user_obj.id if user_obj else None, username=user, action='logout', content='下线')
+                db.session.add(log_out)
+                db.session.commit()
+            except:
+                db.session.rollback()
+
         if room and room in rooms and ws in rooms[room]:
             rooms[room].remove(ws)
             if ws in ws_user_map:

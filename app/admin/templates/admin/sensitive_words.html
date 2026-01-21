@@ -25,7 +25,7 @@
                     <td><span class="layui-badge">{{ word.word }}</span></td>
                     <td>{{ word.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
                     <td>
-                        <button class="layui-btn layui-btn-xs layui-btn-danger" onclick="deleteWord({{ word.id }})">删除</button>
+                        <button class="layui-btn layui-btn-xs layui-btn-danger" onclick="deleteWord('{{ word.id }}')">删除</button>
                     </td>
                 </tr>
                 {% else %}

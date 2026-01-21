@@ -1,6 +1,6 @@
 from flask import render_template, request, redirect, url_for, flash, session, current_app, jsonify, Response, stream_with_context
 from . import admin
-from ..models import AdminUser, User, Room, WSServer, AIModel, ThirdPartyApi, Menu, Role, AIChatSession, AIChatMessage, Message, SensitiveWord, WarningLog
+from ..models import AdminUser, User, Room, WSServer, AIModel, ThirdPartyApi, Menu, Role, AIChatSession, AIChatMessage, Message, SensitiveWord, WarningLog, ActivityLog
 from ..extensions import db
 from ..services.ai_analysis import AIAnalysisService
 
@@ -1215,3 +1215,123 @@ def delete_sensitive_word(id):
     db.session.delete(word)
     db.session.commit()
     return jsonify({'status': 'success'})
+
+@admin.route('/api/monitor/search')
+@admin_required
+def monitor_search():
+    q = request.args.get('q', '').strip()
+    if not q:
+        return jsonify([])
+    
+    results = []
+    # Search Users
+    users = User.query.filter(User.username.like(f'%{q}%')).limit(5).all()
+    for u in users:
+        results.append({'type': 'user', 'id': u.id, 'name': u.username, 'label': f'用户: {u.username}'})
+        
+    # Search Rooms
+    rooms = Room.query.filter(Room.name.like(f'%{q}%')).limit(5).all()
+    for r in rooms:
+        results.append({'type': 'room', 'id': r.id, 'name': r.name, 'label': f'群组: {r.name}'})
+        
+    return jsonify(results)
+
+@admin.route('/api/monitor/data')
+@admin_required
+def monitor_data():
+    target_type = request.args.get('type')
+    target_id = request.args.get('id')
+    
+    if not target_type or not target_id:
+        return jsonify({'error': 'Missing params'}), 400
+        
+    data = {}
+    import random
+    from datetime import timedelta
+    
+    if target_type == 'user':
+        user = User.query.get(target_id)
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+            
+        # Mock Online Status
+        last_msg = Message.query.filter_by(user_id=user.id).order_by(Message.timestamp.desc()).first()
+        is_online = False
+        if last_msg and (datetime.utcnow() - last_msg.timestamp) < timedelta(minutes=10):
+            is_online = True
+        
+        # Recent Activity
+        recent_msgs = Message.query.filter_by(user_id=user.id).order_by(Message.timestamp.desc()).limit(5).all()
+        msg_list = [{'content': m.content, 'time': m.timestamp.strftime('%H:%M:%S'), 'room': m.room.name if m.room else 'Unknown'} for m in recent_msgs]
+        
+        # Active Rooms
+        active_rooms = [r.name for r in user.rooms.limit(5).all()]
+        
+        data = {
+            'name': user.username,
+            'status': '在线' if is_online else '离线',
+            'msg_count': Message.query.filter_by(user_id=user.id).count(),
+            'recent_msgs': msg_list,
+            'active_rooms': active_rooms,
+            # Mock Social Score
+            'social_score': random.randint(50, 95)
+        }
+        
+    elif target_type == 'room':
+        room = Room.query.get(target_id)
+        if not room:
+            return jsonify({'error': 'Room not found'}), 404
+            
+        # Stats
+        total_members = room.members.count()
+        online_members = random.randint(0, total_members) # Mock
+        
+        # Recent Chat Trend (Mock)
+        trend = [random.randint(0, 10) for _ in range(10)]
+        
+        # Social Graph Nodes (Top 5 active users in room)
+        active_users = db.session.query(User.username, db.func.count(Message.id)).join(Message).filter(Message.room_id == room.id).group_by(User.id).order_by(db.func.count(Message.id).desc()).limit(5).all()
+        
+        nodes = [{'name': u[0], 'value': u[1]} for u in active_users]
+        links = []
+        # Mock Links
+        for i in range(len(nodes)):
+            if i + 1 < len(nodes):
+                links.append({'source': nodes[i]['name'], 'target': nodes[i+1]['name']})
+        
+        data = {
+            'name': room.name,
+            'total_members': total_members,
+            'online_members': online_members,
+            'trend': trend,
+            'nodes': nodes,
+            'links': links
+        }
+        
+    return jsonify(data)
+
+@admin.route('/api/monitor/activities')
+@admin_required
+def monitor_activities():
+    # Fetch recent activities
+    logs = ActivityLog.query.order_by(ActivityLog.timestamp.desc()).limit(50).all()
+    
+    data = []
+    for log in logs:
+        action_map = {
+            'login': '上线',
+            'logout': '下线',
+            'join_room': '加入群聊',
+            'leave_room': '离开群聊',
+            'chat': '发送消息'
+        }
+        
+        data.append({
+            'time': log.timestamp.strftime('%H:%M:%S'),
+            'username': log.username,
+            'action': log.action,
+            'content': log.content,
+            'action_display': action_map.get(log.action, log.action)
+        })
+    
+    return jsonify(data)

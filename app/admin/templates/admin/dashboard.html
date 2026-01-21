@@ -195,6 +195,24 @@
                     <div class="warning-item">正在连接监控系统...</div>
                 </div>
             </div>
+            
+            <div class="dashboard-panel">
+                <div class="dashboard-panel-footer"></div>
+                <h2>虚拟用户活动轨迹 (模拟)</h2>
+                <div id="trajectory-chart" class="chart-box" style="height: 250px;"></div>
+            </div>
+            
+            <div class="dashboard-panel">
+                <div class="dashboard-panel-footer"></div>
+                <h2>重点监控 (人员/群组)</h2>
+                <div class="monitor-search-box" style="position: relative; margin-bottom: 15px;">
+                    <input type="text" id="monitor-search" placeholder="输入用户名或群名搜索..." style="width: 100%; background: rgba(255,255,255,0.1); border: 1px solid #00f6ff; color: #fff; padding: 8px; border-radius: 4px; box-sizing: border-box;">
+                    <div id="search-results" style="display:none; position: absolute; top: 100%; left: 0; width: 100%; background: #0b122e; border: 1px solid #00f6ff; z-index: 100; max-height: 200px; overflow-y: auto;"></div>
+                </div>
+                <div id="monitor-content" style="min-height: 180px; color: #eee; font-size: 14px;">
+                    <div style="text-align: center; color: #666; padding-top: 50px;">请搜索并选择监控对象</div>
+                </div>
+            </div>
         </div>
         
         <!-- Right Column -->
@@ -207,6 +225,14 @@
                 </div>
             </div>
             
+            <div class="dashboard-panel">
+                <div class="dashboard-panel-footer"></div>
+                <h2>实时活动监控</h2>
+                <div id="activity-monitor" style="min-height: 200px; max-height: 300px; color: #eee; font-size: 12px; overflow-y: auto;">
+                    <div style="text-align: center; color: #666; padding-top: 50px;">正在加载实时活动数据...</div>
+                </div>
+            </div>
+
             <div class="dashboard-panel">
                 <div class="dashboard-panel-footer"></div>
                 <h2>活跃房间排行</h2>
@@ -225,7 +251,10 @@
     }, 1000);
 
     // Charts
-    let lineChart, pieChart, barChart, sentimentChart;
+    let lineChart, pieChart, barChart, sentimentChart, trajectoryChart;
+    let trajectoryTimer = null;
+    let currentRoomList = [];
+    
     try {
         if (typeof echarts === 'undefined') {
             console.error('ECharts is not loaded.');
@@ -235,6 +264,7 @@
             pieChart = echarts.init(document.getElementById('pie-chart'));
             barChart = echarts.init(document.getElementById('bar-chart'));
             sentimentChart = echarts.init(document.getElementById('sentiment-chart'));
+            trajectoryChart = echarts.init(document.getElementById('trajectory-chart'));
 
             // Resize charts
             window.addEventListener('resize', () => {
@@ -242,11 +272,13 @@
                 pieChart && pieChart.resize();
                 barChart && barChart.resize();
                 sentimentChart && sentimentChart.resize();
+                trajectoryChart && trajectoryChart.resize();
             });
         }
     } catch (e) {
         console.error('Error initializing charts:', e);
     }
+
 
     // Report Generation
     document.getElementById('btn-report').addEventListener('click', function() {
@@ -466,6 +498,103 @@
                     });
                 }
                 
+                // Update Trajectory Chart (Mock User Movement)
+                if (trajectoryChart && data.active_rooms.length > 0) {
+                    const rooms = data.active_rooms.map(r => r.name);
+                    
+                    // Fixed Pentagon Layout (normalized 0-100)
+                    const layouts = [
+                        [50, 90], [90, 60], [75, 20], [25, 20], [10, 60]
+                    ];
+                    
+                    const nodes = rooms.map((name, i) => ({
+                        name: name,
+                        x: layouts[i % 5][0],
+                        y: layouts[i % 5][1],
+                        symbolSize: 40,
+                        itemStyle: { 
+                            color: new echarts.graphic.RadialGradient(0.5, 0.5, 0.5, [
+                                { offset: 0, color: '#00f6ff' },
+                                { offset: 1, color: '#0b122e' }
+                            ]),
+                            borderColor: '#00f6ff',
+                            borderWidth: 2
+                        },
+                        label: { show: true, position: 'bottom', color: '#fff', fontSize: 10 }
+                    }));
+                    
+                    // Update static nodes only if not initialized or changed
+                    // (Simplification: Update every time is fine)
+                    trajectoryChart.setOption({
+                        backgroundColor: 'transparent',
+                        xAxis: { show: false, min: 0, max: 100 },
+                        yAxis: { show: false, min: 0, max: 100 },
+                        grid: { top: 0, bottom: 0, left: 0, right: 0 },
+                        series: [{
+                            name: 'Rooms',
+                            type: 'graph',
+                            layout: 'none',
+                            coordinateSystem: 'cartesian2d',
+                            data: nodes,
+                            symbol: 'circle',
+                            z: 2
+                        }]
+                    });
+                    
+                    // Start Simulation Logic
+                    if (!trajectoryTimer) {
+                        const runSimulation = () => {
+                            if (nodes.length < 2) return;
+                            
+                            // Pick random path
+                            const startIdx = Math.floor(Math.random() * nodes.length);
+                            let endIdx = Math.floor(Math.random() * nodes.length);
+                            while (endIdx === startIdx) {
+                                endIdx = Math.floor(Math.random() * nodes.length);
+                            }
+                            
+                            const startNode = nodes[startIdx];
+                            const endNode = nodes[endIdx];
+                            
+                            trajectoryChart.setOption({
+                                series: [
+                                    {
+                                        // Update Room Nodes (keep them)
+                                        name: 'Rooms',
+                                        data: nodes
+                                    },
+                                    {
+                                        name: 'Path',
+                                        type: 'lines',
+                                        coordinateSystem: 'cartesian2d',
+                                        z: 1,
+                                        effect: {
+                                            show: true,
+                                            period: 2, // Speed of travel
+                                            trailLength: 0.4,
+                                            symbol: 'pin', // The "Virtual Person"
+                                            symbolSize: 20,
+                                            color: '#ffeb7b',
+                                            loop: true // Keep moving to ensure visibility
+                                        },
+                                        lineStyle: {
+                                            color: 'rgba(255, 255, 255, 0.2)',
+                                            width: 1,
+                                            curveness: 0.3
+                                        },
+                                        data: [{
+                                            coords: [[startNode.x, startNode.y], [endNode.x, endNode.y]]
+                                        }]
+                                    }
+                                ]
+                            });
+                        };
+                        
+                        runSimulation(); // Run immediately
+                        trajectoryTimer = setInterval(runSimulation, 3000); // Change path every 3s
+                    }
+                }
+
                 // Update Warnings
                 const warningsContainer = document.getElementById('warning-list');
                 warningsContainer.innerHTML = '';
@@ -486,5 +615,214 @@
     // Init load and poll
     fetchData();
     setInterval(fetchData, 5000); // Refresh every 5s
+
+    // ================= Focus Monitor Logic =================
+    const searchInput = document.getElementById('monitor-search');
+    const searchResults = document.getElementById('search-results');
+    const monitorContent = document.getElementById('monitor-content');
+    let monitorChart = null;
+    let searchTimer = null;
+
+    searchInput.addEventListener('input', function() {
+        const q = this.value.trim();
+        if (searchTimer) clearTimeout(searchTimer);
+        
+        if (!q) {
+            searchResults.style.display = 'none';
+            return;
+        }
+        
+        searchTimer = setTimeout(() => {
+            fetch(`{{ url_for('admin.monitor_search') }}?q=${encodeURIComponent(q)}`)
+                .then(res => res.json())
+                .then(data => {
+                    searchResults.innerHTML = '';
+                    if (data.length === 0) {
+                        searchResults.innerHTML = '<div style="padding:10px; color:#aaa;">无搜索结果</div>';
+                    } else {
+                        data.forEach(item => {
+                            const div = document.createElement('div');
+                            div.style.padding = '8px 10px';
+                            div.style.cursor = 'pointer';
+                            div.style.borderBottom = '1px solid #333';
+                            div.innerHTML = item.label;
+                            div.onmouseover = () => div.style.background = '#1a3c75';
+                            div.onmouseout = () => div.style.background = 'transparent';
+                            div.onclick = () => loadMonitorData(item.type, item.id);
+                            searchResults.appendChild(div);
+                        });
+                    }
+                    searchResults.style.display = 'block';
+                });
+        }, 500);
+    });
+    
+    // Hide search results on click outside
+    document.addEventListener('click', (e) => {
+        if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+            searchResults.style.display = 'none';
+        }
+    });
+
+    function loadMonitorData(type, id) {
+        searchResults.style.display = 'none';
+        monitorContent.innerHTML = '<div style="text-align:center; padding:20px;"><i class="layui-icon layui-icon-loading layui-anim layui-anim-rotate layui-anim-loop"></i> 加载中...</div>';
+        
+        fetch(`{{ url_for('admin.monitor_data') }}?type=${type}&id=${id}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) {
+                    monitorContent.innerHTML = `<div style="color:red;">加载失败: ${data.error}</div>`;
+                    return;
+                }
+                
+                if (type === 'user') {
+                    renderUserMonitor(data);
+                } else {
+                    renderRoomMonitor(data);
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                monitorContent.innerHTML = '<div style="color:red;">网络错误</div>';
+            });
+    }
+
+    function renderUserMonitor(data) {
+        let msgsHtml = '';
+        if (data.recent_msgs && data.recent_msgs.length > 0) {
+            msgsHtml = data.recent_msgs.map(m => `
+                <div style="margin-bottom:5px; font-size:12px; border-bottom:1px dashed #333; padding-bottom:3px;">
+                    <span style="color:#00f6ff;">[${m.time}]</span> 
+                    <span style="color:#aaa;">@${m.room}:</span> 
+                    ${m.content}
+                </div>
+            `).join('');
+        } else {
+            msgsHtml = '<div style="color:#666;">暂无近期消息</div>';
+        }
+
+        const roomsHtml = data.active_rooms.map(r => `<span style="display:inline-block; padding:2px 6px; background:#1a3c75; margin:2px; border-radius:3px; font-size:12px;">${r}</span>`).join('');
+
+        const html = `
+            <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                <div style="font-size:18px; color:#00f6ff; font-weight:bold;">${data.name}</div>
+                <div>
+                    <span style="color:${data.status === '在线' ? '#00ff00' : '#aaa'}; font-weight:bold;">● ${data.status}</span>
+                </div>
+            </div>
+            <div style="display:flex; margin-bottom:10px;">
+                <div style="flex:1; text-align:center; border-right:1px solid #333;">
+                    <div style="color:#aaa; font-size:12px;">发信总数</div>
+                    <div style="font-size:16px; color:#fff;">${data.msg_count}</div>
+                </div>
+                <div style="flex:1; text-align:center;">
+                    <div style="color:#aaa; font-size:12px;">社交活跃分</div>
+                    <div style="font-size:16px; color:#ffeb7b;">${data.social_score}</div>
+                </div>
+            </div>
+            <div style="margin-bottom:10px;">
+                <div style="color:#00f6ff; font-size:14px; margin-bottom:5px;">活跃群组</div>
+                <div>${roomsHtml || '<span style="color:#666">无</span>'}</div>
+            </div>
+            <div>
+                <div style="color:#00f6ff; font-size:14px; margin-bottom:5px;">最近发言</div>
+                <div style="max-height:100px; overflow-y:auto;">${msgsHtml}</div>
+            </div>
+        `;
+        monitorContent.innerHTML = html;
+        if (monitorChart) {
+            monitorChart.dispose();
+            monitorChart = null;
+        }
+    }
+
+    function renderRoomMonitor(data) {
+        const html = `
+            <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                <div style="font-size:18px; color:#00f6ff; font-weight:bold;">${data.name}</div>
+                <div style="font-size:12px; color:#aaa;">在线: <span style="color:#00ff00;">${data.online_members}</span> / 总数: ${data.total_members}</div>
+            </div>
+            <div style="height:200px; width:100%;" id="monitor-chart"></div>
+        `;
+        monitorContent.innerHTML = html;
+        
+        // Render Social Graph
+        setTimeout(() => {
+            const chartDom = document.getElementById('monitor-chart');
+            if (chartDom) {
+                if (monitorChart) monitorChart.dispose();
+                monitorChart = echarts.init(chartDom);
+                
+                monitorChart.setOption({
+                    title: { text: '群社交关系 (Top 5)', textStyle: { color: '#fff', fontSize: 12 }, left: 'center' },
+                    tooltip: {},
+                    series: [
+                        {
+                            type: 'graph',
+                            layout: 'force',
+                            symbolSize: 30,
+                            roam: true,
+                            label: { show: true, position: 'bottom', color: '#fff' },
+                            force: { repulsion: 100 },
+                            data: data.nodes.map(n => ({
+                                name: n.name,
+                                value: n.value,
+                                itemStyle: { color: '#00f6ff' }
+                            })),
+                            links: data.links,
+                            lineStyle: { color: '#fff', opacity: 0.5 }
+                        }
+                    ]
+                });
+            }
+        }, 100);
+    }
+
+    // ================= Real-time Activity Monitor =================
+    let activityMonitorTimer = null;
+
+    function fetchActivities() {
+        fetch("{{ url_for('admin.monitor_activities') }}")
+            .then(response => response.json())
+            .then(data => {
+                const activityMonitor = document.getElementById('activity-monitor');
+                if (!activityMonitor) return;
+                
+                if (data.length === 0) {
+                    activityMonitor.innerHTML = '<div style="text-align: center; color: #666; padding-top: 50px;">暂无活动数据</div>';
+                    return;
+                }
+
+                let html = '';
+                data.forEach(log => {
+                    const actionColorMap = {
+                        'login': '#00ff00',   // Green
+                        'logout': '#aaa',     // Grey
+                        'join_room': '#00f6ff', // Cyan
+                        'leave_room': '#ff9900', // Orange
+                        'chat': '#ffeb7b'     // Yellow
+                    };
+                    
+                    html += `
+                        <div style="padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                            <span style="color: #888; font-size: 12px; margin-right: 8px;">[${log.time}]</span>
+                            <span style="color: #fff; font-weight: bold; margin-right: 5px;">${log.username}</span>
+                            <span style="color: ${actionColorMap[log.action] || '#fff'}; margin-right: 5px;">${log.action_display}</span>
+                            <span style="color: #ddd;">${log.content}</span>
+                        </div>
+                    `;
+                });
+                activityMonitor.innerHTML = html;
+            })
+            .catch(err => {
+                console.error('Error fetching activities:', err);
+            });
+    }
+
+    // Start polling
+    if (activityMonitorTimer) clearInterval(activityMonitorTimer);
+    activityMonitorTimer = setInterval(fetchActivities, 3000); // Poll every 3 seconds
+    fetchActivities();
 </script>
 {% endblock %}

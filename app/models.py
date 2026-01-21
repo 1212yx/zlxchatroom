@@ -218,3 +218,15 @@ class WarningLog(db.Model):
 
     def __repr__(self):
         return f'<WarningLog {self.id}>'
+
+class ActivityLog(db.Model):
+    __tablename__ = 'activity_logs'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    username = db.Column(db.String(64)) 
+    action = db.Column(db.String(32)) # login, logout, join_room, leave_room, chat
+    content = db.Column(db.String(256)) 
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+
+    def __repr__(self):
+        return f'<ActivityLog {self.action} - {self.username}>'
