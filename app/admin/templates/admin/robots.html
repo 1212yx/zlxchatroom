@@ -1,0 +1,44 @@
+{% extends "admin/layout.html" %}
+
+{% block breadcrumb %}AI机器人列表{% endblock %}
+
+{% block content %}
+<div class="layui-card page-toolbar">
+    <div class="layui-row">
+        <div class="layui-col-md12">
+            <blockquote class="layui-elem-quote">
+                这里列出了系统支持的所有AI机器人及其指令。这些机器人已集成到聊天系统中，无需额外配置即可使用。
+            </blockquote>
+        </div>
+    </div>
+</div>
+
+<div class="layui-card">
+    <div class="layui-card-body">
+        <table class="layui-table">
+            <thead>
+                <tr>
+                    <th width="150">机器人名称</th>
+                    <th width="200">触发指令</th>
+                    <th>功能描述</th>
+                    <th>使用示例</th>
+                    <th width="100" style="text-align: center;">状态</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for robot in robots %}
+                <tr>
+                    <td><strong>{{ robot.name }}</strong></td>
+                    <td><span class="layui-badge layui-bg-blue" style="font-family: monospace;">{{ robot.command }}</span></td>
+                    <td>{{ robot.description }}</td>
+                    <td><code style="background: #f2f2f2; padding: 2px 5px; border-radius: 3px;">{{ robot.example }}</code></td>
+                    <td style="text-align: center;">
+                        <span class="layui-badge layui-bg-green">已启用</span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

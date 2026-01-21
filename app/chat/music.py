@@ -11,19 +11,21 @@ def get_music_data(command_type):
     # 1. Get API config
     api_config = ThirdPartyApi.query.filter_by(command=cmd_str, is_enabled=True).first()
     
-    if not api_config:
-        # Fallback to check if the other one exists if this one doesn't (since they share URL)
-        api_config = ThirdPartyApi.query.filter(ThirdPartyApi.command.like('小音乐%')).first()
-        if not api_config:
-            return {'error': '音乐接口未配置'}
+    url = 'http://apii.52vmy.cn/api/music/wy/rand'
+    token = '270eab1f9444368dcf0a0dc139ccfa50'
 
+    if api_config:
+        url = api_config.url
+        token = api_config.token
+    
     # 2. Prepare payload
     payload = {
-        'token': api_config.token
+        'token': token
     }
     
     try:
-        response = requests.post(api_config.url, data=payload, timeout=8)
+        # Use GET request as verified by testing (POST fails with 110 Missing Token)
+        response = requests.get(url, params=payload, timeout=8)
         response.raise_for_status()
         data = response.json()
         
@@ -31,7 +33,20 @@ def get_music_data(command_type):
         print(f"Music API Response: {data}")
         
         if data.get('code') == 200:
-            return data
+            # Normalize data keys to match frontend expectation
+            raw_data = data.get('data', {})
+            normalized_song = {
+                'name': raw_data.get('song') or raw_data.get('name', '未知歌曲'),
+                'artistsname': raw_data.get('singer') or raw_data.get('artistsname', '未知歌手'),
+                'url': raw_data.get('Music') or raw_data.get('url', ''),
+                'cover': raw_data.get('cover', '')
+            }
+            
+            return {
+                'code': 200,
+                'msg': 'success',
+                'data': normalized_song
+            }
         else:
             return {'error': data.get('msg', '获取音乐失败')}
 

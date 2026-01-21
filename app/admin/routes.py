@@ -351,6 +351,63 @@ def ai_model_test():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
+# ================= AI Robot List Routes =================
+
+@admin.route('/robots')
+@admin_required
+def robots():
+    robots_list = [
+        {
+            'name': '小师妹',
+            'command': '@小师妹',
+            'description': '智能对话机器人，支持自然语言交互',
+            'example': '@小师妹 你好'
+        },
+        {
+            'name': '小天气',
+            'command': '小天气',
+            'description': '查询当前所在地天气信息，支持自动生成天气卡片和背景视频',
+            'example': '小天气'
+        },
+        {
+            'name': '小天气 city',
+            'command': '小天气 [城市名]',
+            'description': '查询指定城市的天气信息',
+            'example': '小天气 北京'
+        },
+        {
+            'name': '小新闻',
+            'command': '小新闻',
+            'description': '获取最新的即时新闻资讯',
+            'example': '小新闻'
+        },
+        {
+            'name': '小视频',
+            'command': '小视频',
+            'description': '随机推荐并播放精彩短视频',
+            'example': '小视频'
+        },
+        {
+            'name': '小视频 url',
+            'command': '小视频 [链接]',
+            'description': '解析并播放指定链接的视频（支持抖音、快手等平台链接）',
+            'example': '小视频 https://v.douyin.com/...'
+        },
+        {
+            'name': '小音乐 随机播放',
+            'command': '小音乐 随机播放',
+            'description': '随机播放一首热门歌曲',
+            'example': '小音乐 随机播放'
+        },
+        {
+            'name': '小音乐 群内送歌',
+            'command': '小音乐 群内送歌 [歌名]',
+            'description': '点播一首歌曲并分享给群内好友',
+            'example': '小音乐 群内送歌 晴天'
+        }
+    ]
+    return render_template('admin/robots.html', robots=robots_list)
+
 # ================= Interface Management Routes =================
 
 @admin.route('/apis')

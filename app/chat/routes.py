@@ -1,13 +1,14 @@
 from flask import render_template, request, session, redirect, url_for
 from . import chat
 from app.extensions import sock, db
-from app.models import WSServer, db
-from app.models import User, Room, Message
+from app.models import User, Room, Message, WSServer
+from sqlalchemy import text
 import json
 from datetime import datetime
 from app.bot.core import get_bot_response
 from app.chat.weather import get_weather_data, parse_weather_video
 from app.chat.music import get_music_data
+from app.chat.news import get_news_data
 
 # In-memory store for connected clients: {room_id: set(ws)}
 # Using set for O(1) removal, but ws objects need to be hashable. They usually are.
@@ -77,8 +78,14 @@ def logout():
     session.clear()
     return redirect(url_for('chat.login'))
 
+@chat.route('/api/music/random')
+def api_music_random():
+    data = get_music_data('random')
+    return json.dumps(data)
+
 @sock.route('/ws', bp=chat)
 def websocket(ws):
+    print("DEBUG: Websocket function called - Version 3")
     username = session.get('username')
     user_obj = User.query.filter_by(username=username).first() if username else None
     
@@ -214,9 +221,14 @@ def websocket(ws):
                             # Check for Weather Trigger
                             elif content.startswith('小天气'):
                                 try:
-                                    city = content.replace('小天气', '').strip()
+                                    # Support various formats: "小天气 北京", "小天气:北京", "小天气：北京"
+                                    # Remove "小天气" prefix
+                                    raw_city = content[3:].strip()
+                                    # Remove common separators
+                                    city = raw_city.replace(':', '').replace('：', '').strip()
+                                    
                                     if not city:
-                                        city = "北京"
+                                        city = "内江"
                                     
                                     broadcast(room, {
                                         'type': 'chat', 
@@ -276,22 +288,40 @@ def websocket(ws):
                                         mode = 'random'
                                     
                                     if mode:
-                                        broadcast(room, {
-                                            'type': 'chat', 
-                                            'user': '小音乐', 
-                                            'content': "正在获取音乐...", 
-                                            'timestamp': datetime.now().strftime('%H:%M')
-                                        })
+                                        # 1. Notify "Fetching..."
+                                        if mode == 'random':
+                                            ws.send(json.dumps({
+                                                'type': 'chat', 
+                                                'user': '小音乐', 
+                                                'content': "正在获取音乐...", 
+                                                'timestamp': datetime.now().strftime('%H:%M')
+                                            }))
+                                        else:
+                                            broadcast(room, {
+                                                'type': 'chat', 
+                                                'user': '小音乐', 
+                                                'content': "正在获取音乐...", 
+                                                'timestamp': datetime.now().strftime('%H:%M')
+                                            })
 
                                         data = get_music_data(mode)
                                         
                                         if 'error' in data:
-                                            broadcast(room, {
-                                                'type': 'chat',
-                                                'user': '小音乐',
-                                                'content': f"获取失败: {data['error']}",
-                                                'timestamp': datetime.now().strftime('%H:%M')
-                                            })
+                                            error_msg = f"获取失败: {data['error']}"
+                                            if mode == 'random':
+                                                ws.send(json.dumps({
+                                                    'type': 'chat',
+                                                    'user': '小音乐',
+                                                    'content': error_msg,
+                                                    'timestamp': datetime.now().strftime('%H:%M')
+                                                }))
+                                            else:
+                                                broadcast(room, {
+                                                    'type': 'chat',
+                                                    'user': '小音乐',
+                                                    'content': error_msg,
+                                                    'timestamp': datetime.now().strftime('%H:%M')
+                                                })
                                         else:
                                             # Construct Special Message
                                             special_type = 'music_gift' if mode == 'gift' else 'music_private'
@@ -302,19 +332,27 @@ def websocket(ws):
                                             }
                                             special_content = "SPECIAL:" + json.dumps(special_payload)
                                             
-                                            # Save to DB
-                                            if room_obj:
-                                                db_msg = Message(content=special_content, user_id=None, room_id=room_obj.id)
-                                                db.session.add(db_msg)
-                                                db.session.commit()
-                                            
-                                            # Broadcast
-                                            broadcast(room, {
-                                                'type': 'chat',
-                                                'user': '小音乐',
-                                                'content': special_content,
-                                                'timestamp': datetime.now().strftime('%H:%M')
-                                            })
+                                            if mode == 'random':
+                                                # Private: Send only to requester, don't save to DB
+                                                ws.send(json.dumps({
+                                                    'type': 'chat',
+                                                    'user': '小音乐',
+                                                    'content': special_content,
+                                                    'timestamp': datetime.now().strftime('%H:%M')
+                                                }))
+                                            else:
+                                                # Public (Gift): Save to DB and Broadcast
+                                                if room_obj:
+                                                    db_msg = Message(content=special_content, user_id=None, room_id=room_obj.id)
+                                                    db.session.add(db_msg)
+                                                    db.session.commit()
+                                                
+                                                broadcast(room, {
+                                                    'type': 'chat',
+                                                    'user': '小音乐',
+                                                    'content': special_content,
+                                                    'timestamp': datetime.now().strftime('%H:%M')
+                                                })
                                             
                                 except Exception as e:
                                     print(f"Music Error: {e}")
@@ -322,6 +360,247 @@ def websocket(ws):
                                         'type': 'chat',
                                         'user': 'System',
                                         'content': f"音乐服务出错: {str(e)}",
+                                        'timestamp': datetime.now().strftime('%H:%M')
+                                    })
+
+                            # Check for News Trigger
+                            elif content.strip() == '小新闻':
+                                try:
+                                    broadcast(room, {
+                                        'type': 'chat', 
+                                        'user': '小新闻', 
+                                        'content': "正在获取新闻...", 
+                                        'timestamp': datetime.now().strftime('%H:%M')
+                                    })
+
+                                    data = get_news_data()
+                                    
+                                    if 'error' in data:
+                                        broadcast(room, {
+                                            'type': 'chat',
+                                            'user': '小新闻',
+                                            'content': f"获取失败: {data['error']}",
+                                            'timestamp': datetime.now().strftime('%H:%M')
+                                        })
+                                    else:
+                                        # Construct Special Message
+                                        special_payload = {
+                                            'type': 'news_card',
+                                            'data': data
+                                        }
+                                        special_content = "SPECIAL:" + json.dumps(special_payload)
+                                        
+                                        # Save to DB
+                                        if room_obj:
+                                            db_msg = Message(content=special_content, user_id=None, room_id=room_obj.id)
+                                            db.session.add(db_msg)
+                                            db.session.commit()
+                                        
+                                        # Broadcast
+                                        broadcast(room, {
+                                            'type': 'chat',
+                                            'user': '小新闻',
+                                            'content': special_content,
+                                            'timestamp': datetime.now().strftime('%H:%M')
+                                        })
+                                        
+                                except Exception as e:
+                                    print(f"News Error: {e}")
+                                    broadcast(room, {
+                                        'type': 'chat',
+                                        'user': 'System',
+                                        'content': f"新闻服务出错: {str(e)}",
+                                        'timestamp': datetime.now().strftime('%H:%M')
+                                    })
+
+                            # Check for Video Trigger
+                            elif content.strip().startswith('小视频'):
+                                try:
+                                    # Normalize content
+                                    raw_content = content.strip().replace('　', ' ')
+                                    
+                                    video_url = None
+                                    # Flexible parsing strategies
+                                    if ' ' in raw_content:
+                                        # Split by first space
+                                        parts = raw_content.split(' ', 1)
+                                        if len(parts) > 1 and parts[1].strip():
+                                            video_url = parts[1].strip()
+                                    
+                                    if not video_url and ('：' in raw_content or ':' in raw_content):
+                                        # Split by colon
+                                        clean_content = raw_content.replace('：', ':')
+                                        parts = clean_content.split(':', 1)
+                                        if len(parts) > 1 and parts[1].strip():
+                                            video_url = parts[1].strip()
+                                            
+                                    if not video_url:
+                                        # Try to find http/https directly
+                                        http_idx = raw_content.find('http')
+                                        if http_idx > 0:
+                                            video_url = raw_content[http_idx:].strip()
+
+                                    if video_url:
+                                        # Broadcast processing message
+                                        broadcast(room, {
+                                            'type': 'chat',
+                                            'user': 'System',
+                                            'content': f"正在解析视频: {video_url}",
+                                            'timestamp': datetime.now().strftime('%H:%M')
+                                        })
+
+                                        # Get Parsing API
+                                        try:
+                                            # Using raw SQL to bypass any model import issues causing NameError
+                                            sql = text("SELECT url FROM third_party_apis WHERE command = :cmd AND is_enabled = 1 LIMIT 1")
+                                            result = db.session.execute(sql, {'cmd': '小视频 url'}).fetchone()
+                                            
+                                            if result:
+                                                class SimpleConfig:
+                                                    pass
+                                                api_config = SimpleConfig()
+                                                api_config.url = result[0]
+                                            else:
+                                                api_config = None
+                                                
+                                        except Exception as e:
+                                            print(f"CRITICAL ERROR in Video API lookup: {e}")
+                                            import traceback
+                                            traceback.print_exc()
+                                            api_config = None
+                                        
+                                        if api_config:
+                                            parsing_url = api_config.url
+                                            iframe_src = f"{parsing_url}{video_url}"
+                                            
+                                            special_payload = {
+                                                'type': 'video_embed',
+                                                'data': {
+                                                    'src': iframe_src,
+                                                    'original_url': video_url
+                                                }
+                                            }
+                                            special_content = "SPECIAL:" + json.dumps(special_payload)
+                                            
+                                            # Save to DB
+                                            if room_obj:
+                                                db_msg = Message(content=special_content, user_id=None, room_id=room_obj.id)
+                                                db.session.add(db_msg)
+                                                db.session.commit()
+                                            
+                                            broadcast(room, {
+                                                'type': 'chat',
+                                                'user': '小视频',
+                                                'content': special_content,
+                                                'timestamp': datetime.now().strftime('%H:%M')
+                                            })
+                                        else:
+                                            broadcast(room, {
+                                                'type': 'chat',
+                                                'user': 'System',
+                                                'content': "未配置小视频解析接口，请联系管理员。",
+                                                'timestamp': datetime.now().strftime('%H:%M')
+                                            })
+                                    else:
+                                        # Only warn if it looks like a failed attempt (e.g. just "小视频")
+                                        if raw_content == '小视频':
+                                            broadcast(room, {
+                                                'type': 'chat',
+                                                'user': 'System',
+                                                'content': "正在为您随机推荐精彩视频...",
+                                                'timestamp': datetime.now().strftime('%H:%M')
+                                            })
+                                            
+                                            try:
+                                                import requests
+                                                import random
+                                                
+                                                video_url = None
+                                                
+                                                # List of APIs to try
+                                                # Note: Public APIs are often unstable, so we have multiple backups
+                                                apis = [
+                                                    "https://api.uomg.com/api/rand.douyin?format=json",
+                                                    "https://api.yujn.cn/api/zzxjj.php?type=json",
+                                                    "https://api.btstu.cn/sjbz/api.php?method=mobile&format=json"
+                                                ]
+                                                
+                                                # 1. Try APIs
+                                                for api in apis:
+                                                    try:
+                                                        print(f"DEBUG: Trying Video API: {api}")
+                                                        resp = requests.get(api, timeout=5)
+                                                        if resp.status_code == 200:
+                                                            data = resp.json()
+                                                            # Different APIs have different response structures
+                                                            if 'video_url' in data:
+                                                                video_url = data['video_url']
+                                                            elif 'data' in data and isinstance(data['data'], str) and data['data'].startswith('http'):
+                                                                video_url = data['data']
+                                                            elif 'url' in data: # Common pattern
+                                                                video_url = data['url']
+                                                                
+                                                            if video_url and video_url.startswith('http'):
+                                                                print(f"DEBUG: Found video url: {video_url}")
+                                                                break # Success!
+                                                    except Exception as e:
+                                                        print(f"API {api} failed: {e}")
+                                                        continue
+                                                
+                                                # 2. Fallback to hardcoded safe videos if all APIs fail
+                                                if not video_url:
+                                                    print("DEBUG: All APIs failed, using fallback video.")
+                                                    fallback_videos = [
+                                                        "https://v.api.aa1.cn/api/api-dy/video/01.mp4", # Example public API that returns video directly (might redirect)
+                                                        # Using some known static video URLs (replace with reliable ones if available)
+                                                        "https://www.w3schools.com/html/mov_bbb.mp4", # Reliable test video
+                                                        "https://media.w3.org/2010/05/sintel/trailer.mp4"
+                                                    ]
+                                                    video_url = random.choice(fallback_videos)
+
+                                                if video_url:
+                                                    special_payload = {
+                                                        'type': 'video_embed',
+                                                        'data': {
+                                                            'src': video_url,
+                                                            'original_url': video_url
+                                                        }
+                                                    }
+                                                    special_content = "SPECIAL:" + json.dumps(special_payload)
+                                                    
+                                                    if room_obj:
+                                                        db_msg = Message(content=special_content, user_id=None, room_id=room_obj.id)
+                                                        db.session.add(db_msg)
+                                                        db.session.commit()
+                                                    
+                                                    broadcast(room, {
+                                                        'type': 'chat',
+                                                        'user': '小视频',
+                                                        'content': special_content,
+                                                        'timestamp': datetime.now().strftime('%H:%M')
+                                                    })
+                                                else:
+                                                    broadcast(room, {
+                                                        'type': 'chat',
+                                                        'user': 'System',
+                                                        'content': "未能获取到随机视频，请重试。",
+                                                        'timestamp': datetime.now().strftime('%H:%M')
+                                                    })
+                                                    
+                                            except Exception as e:
+                                                print(f"Random Video Error: {e}")
+                                                broadcast(room, {
+                                                    'type': 'chat',
+                                                    'user': 'System',
+                                                    'content': "获取随机视频失败，请稍后重试。",
+                                                    'timestamp': datetime.now().strftime('%H:%M')
+                                                })
+                                except Exception as e:
+                                    print(f"Video Error: {e}")
+                                    broadcast(room, {
+                                        'type': 'chat',
+                                        'user': 'System',
+                                        'content': f"视频服务出错: {str(e)}",
                                         'timestamp': datetime.now().strftime('%H:%M')
                                     })
 

@@ -654,6 +654,24 @@ input:checked + .slider:before {
     min-width: 200px;
     box-shadow: 0 4px 15px rgba(0,0,0,0.2);
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    position: relative;
+    overflow: hidden;
+}
+
+.weather-card.sunny { background: linear-gradient(135deg, #FFC371, #FF5F6D); }
+.weather-card.cloudy { background: linear-gradient(135deg, #bdc3c7, #2c3e50); }
+.weather-card.overcast { background: linear-gradient(135deg, #525252, #3d72b4); }
+.weather-card.fog { background: linear-gradient(135deg, #757F9A, #D7DDE8); color: #333; }
+.weather-card.rain { background: linear-gradient(135deg, #4e54c8, #8f94fb); }
+.weather-card.snow { background: linear-gradient(135deg, #E0EAFC, #CFDEF3); color: #555; }
+.weather-card.wind { background: linear-gradient(135deg, #11998e, #38ef7d); }
+.weather-card.thunder { background: linear-gradient(135deg, #141E30, #243B55); }
+
+.weather-date {
+    font-size: 0.8em;
+    opacity: 0.8;
+    margin-top: 5px;
+    text-align: right;
 }
 
 .weather-header {
@@ -771,6 +789,16 @@ input:checked + .slider:before {
     display: flex;
     justify-content: center;
     align-items: center;
+    gap: 20px;
+}
+.music-control-btn {
+    cursor: pointer;
+    opacity: 0.8;
+    transition: opacity 0.2s;
+    font-size: 20px;
+}
+.music-control-btn:hover {
+    opacity: 1;
 }
 .music-play-btn {
     background: white;
@@ -787,5 +815,69 @@ input:checked + .slider:before {
 }
 .music-play-btn:hover {
     transform: scale(1.1);
+}
+
+
+/* Video Embed Card */
+.video-embed-card {
+    width: 320px;
+    max-width: 100%;
+    background: #000;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    border: 1px solid rgba(255,255,255,0.1);
+    margin-top: 5px;
+}
+
+.video-ratio-box {
+    position: relative;
+    width: 100%;
+    padding-bottom: 75%; /* 4:3 Aspect Ratio */
+    background: #111;
+}
+
+.video-placeholder {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    background: linear-gradient(135deg, #1e232a, #0d1117);
+    color: #c9d1d9;
+    transition: all 0.3s ease;
+    z-index: 2;
+}
+
+.video-placeholder:hover {
+    background: linear-gradient(135deg, #242a33, #161b22);
+    color: #58a6ff;
+}
+
+.video-placeholder i {
+    font-size: 48px;
+    margin-bottom: 12px;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+}
+
+.video-placeholder span {
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+}
+
+.video-iframe {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border: none;
+    z-index: 1;
 }
 

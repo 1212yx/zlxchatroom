@@ -87,6 +87,13 @@
                     </a>
                 </li>
 
+                <!-- AI机器人列表 -->
+                <li class="layui-nav-item {% if request.path.startswith('/admin/robots') %}layui-this{% endif %}">
+                    <a href="{{ url_for('admin.robots') }}">
+                        <i class="layui-icon layui-icon-dialogue" style="margin-right: 10px;"></i> AI机器人列表
+                    </a>
+                </li>
+
                 <!-- 接口管理 -->
                 <li class="layui-nav-item {% if request.path.startswith('/admin/apis') %}layui-this{% endif %}">
                     <a href="{{ url_for('admin.apis') }}">

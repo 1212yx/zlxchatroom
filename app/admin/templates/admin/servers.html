@@ -27,7 +27,7 @@
             </div>
             <div class="layui-card-body">
                 <p style="margin-bottom: 5px;">地址：<span class="layui-badge layui-bg-blue">{{ server.address }}</span></p>
-                <p style="margin-bottom: 10px; color: #999; height: 40px; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">描述：{{ server.description or '暂无描述' }}</p>
+                <p style="margin-bottom: 10px; color: #999; height: 40px; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical;">描述：{{ server.description or '暂无描述' }}</p>
                 <p style="margin-bottom: 10px; color: #999;">创建时间：{{ server.created_at.strftime('%Y-%m-%d') }}</p>
                 <hr>
                 <div style="text-align: center; margin-top: 15px;">
