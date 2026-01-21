@@ -383,6 +383,156 @@
             return 'fa-sun';
         }
 
+        function renderWeatherCard(msg, data) {
+            let weatherType = '晴';
+            let city = '未知';
+            let temp = '';
+            let wind = '';
+            
+            if (data.data) {
+                if (data.data.type) weatherType = data.data.type;
+                if (data.data.city) city = data.data.city;
+                if (data.data.wendu) temp = data.data.wendu;
+                if (data.data.fengxiang) wind = data.data.fengxiang;
+            } else if (data.weather) {
+                weatherType = data.weather;
+            }
+            
+            return `
+                <div class="message other">
+                     <div class="avatar" style="width: 32px; height: 32px; font-size: 12px; background: #e6a23c">天</div>
+                     <div>
+                        <div class="message-meta">小天气</div>
+                        <div class="message-content weather-card">
+                            <div class="weather-header">
+                                <span class="weather-city">${city}</span>
+                                <span class="weather-time">${msg.timestamp}</span>
+                            </div>
+                            <div class="weather-main">
+                                <div class="weather-icon">
+                                    <i class="fas ${getWeatherIcon(weatherType)}"></i>
+                                </div>
+                                <div class="weather-temp">${temp}°C</div>
+                            </div>
+                            <div class="weather-details">
+                                <div>${weatherType}</div>
+                                <div>${wind}</div>
+                            </div>
+                        </div>
+                     </div>
+                </div>
+            `;
+        }
+
+        function renderMusicGift(msg, data, specialPayload) {
+            const musicData = specialPayload.data.data || specialPayload.data; // Handle potential nesting
+            const cover = musicData.cover || 'https://via.placeholder.com/150';
+            const title = musicData.name || '未知歌曲';
+            const artist = musicData.artistsname || '未知歌手';
+            const url = musicData.url || '';
+            const uniqueId = 'music-' + Date.now() + Math.random().toString(36).substr(2, 9);
+
+            return `
+                <div class="message other">
+                    <div class="avatar" style="width: 32px; height: 32px; font-size: 12px; background: #d9534f"><i class="fas fa-music"></i></div>
+                    <div>
+                        <div class="message-meta">小音乐</div>
+                        <div class="music-gift" onclick="openMusicPlayer('${uniqueId}', '${cover}', '${title}', '${artist}', '${url}', this)">
+                            <div class="music-gift-icon"></div>
+                            <div class="music-gift-content">
+                                <div class="music-gift-title">送你一首《${title}》</div>
+                                <div class="music-gift-desc">点击领取音乐包</div>
+                            </div>
+                        </div>
+                        <div id="${uniqueId}" style="display:none;"></div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderMusicPlayerHtml(cover, title, artist, url) {
+             return `
+                <div class="music-card">
+                    <div class="music-card-cover" style="background-image: url('${cover}')"></div>
+                    <div class="music-card-info">
+                        <div class="music-card-title">${title}</div>
+                        <div class="music-card-artist">${artist}</div>
+                    </div>
+                    <div class="music-card-controls">
+                        <div class="music-play-btn" onclick="togglePlay(this, '${url}')">
+                            <i class="fas fa-play"></i>
+                        </div>
+                    </div>
+                    <audio src="${url}" onended="resetPlayBtn(this)"></audio>
+                </div>
+            `;
+        }
+
+        window.openMusicPlayer = function(id, cover, title, artist, url, element) {
+            // Replace Gift with Player
+            const container = document.getElementById(id);
+            if (container) {
+                container.innerHTML = renderMusicPlayerHtml(cover, title, artist, url);
+                container.style.display = 'block';
+                element.style.display = 'none'; // Hide gift
+            }
+        };
+
+        window.togglePlay = function(btn, url) {
+            const container = btn.closest('.music-card');
+            const audio = container.querySelector('audio');
+            const icon = btn.querySelector('i');
+            
+            // Pause all other audios
+            document.querySelectorAll('audio').forEach(a => {
+                if (a !== audio) {
+                    a.pause();
+                    // Reset other buttons
+                    const otherBtn = a.closest('.music-card')?.querySelector('.music-play-btn i');
+                    if (otherBtn) {
+                        otherBtn.className = 'fas fa-play';
+                    }
+                }
+            });
+
+            if (audio.paused) {
+                audio.play();
+                icon.className = 'fas fa-pause';
+            } else {
+                audio.pause();
+                icon.className = 'fas fa-play';
+            }
+        };
+
+        window.resetPlayBtn = function(audio) {
+            const btn = audio.closest('.music-card').querySelector('.music-play-btn i');
+            if (btn) btn.className = 'fas fa-play';
+        };
+
+        function renderMusicPrivate(msg, data, specialPayload) {
+            // Only render if target matches current user
+            if (specialPayload.target_user !== user) {
+                // Return empty string or hidden div
+                 return '';
+            }
+
+            const musicData = specialPayload.data.data || specialPayload.data;
+            const cover = musicData.cover || 'https://via.placeholder.com/150';
+            const title = musicData.name || '未知歌曲';
+            const artist = musicData.artistsname || '未知歌手';
+            const url = musicData.url || '';
+
+            return `
+                <div class="message other">
+                    <div class="avatar" style="width: 32px; height: 32px; font-size: 12px; background: #6f42c1"><i class="fas fa-headphones"></i></div>
+                    <div>
+                        <div class="message-meta">小音乐 (私享)</div>
+                        ${renderMusicPlayerHtml(cover, title, artist, url)}
+                    </div>
+                </div>
+            `;
+        }
+
         function appendMessage(msg) {
             const area = $('#messageArea');
             let html = '';
@@ -390,40 +540,68 @@
             if (msg.type === 'system') {
                 html = `<div class="system-message">${msg.content} <span style="font-size:10px;">${msg.timestamp}</span></div>`;
             } else if (msg.type === 'chat') {
-                const isSelf = msg.user === user;
-                
-                // Play sound
-                if (isSelf) {
-                    playSound('self');
+                // Check for SPECIAL content
+                if (msg.content && msg.content.startsWith('SPECIAL:')) {
+                    try {
+                        const specialJson = msg.content.substring(8);
+                        const specialPayload = JSON.parse(specialJson);
+                        const type = specialPayload.type;
+                        
+                        if (type === 'weather') {
+                            html = renderWeatherCard(msg, specialPayload.data);
+                        } else if (type === 'music_gift') {
+                            html = renderMusicGift(msg, specialPayload.data, specialPayload);
+                        } else if (type === 'music_private') {
+                            html = renderMusicPrivate(msg, specialPayload.data, specialPayload);
+                        } else {
+                            // Fallback to text
+                            html = `<div class="system-message">Unknown Special Message: ${type}</div>`;
+                        }
+                    } catch(e) {
+                        console.error("Special msg parse error", e);
+                        html = `<div class="system-message">Error parsing special message</div>`;
+                    }
                 } else {
-                    playSound('msg');
-                }
+                    // Normal Chat Message
+                    const isSelf = msg.user === user;
+                    
+                    // Play sound only if not history
+                    if (!msg.is_history) {
+                        if (isSelf) {
+                            playSound('self');
+                        } else {
+                            playSound('msg');
+                        }
+                    }
 
-                const cls = isSelf ? 'self' : 'other';
-                const avatar = isSelf ? user[0].toUpperCase() : (msg.user ? msg.user[0].toUpperCase() : '?');
-                
-                let renderedContent = msg.content;
-                try {
-                    renderedContent = marked.parse(msg.content);
-                } catch(e) {
-                    console.error("Markdown parse error", e);
-                }
+                    const cls = isSelf ? 'self' : 'other';
+                    const avatar = isSelf ? user[0].toUpperCase() : (msg.user ? msg.user[0].toUpperCase() : '?');
+                    
+                    let renderedContent = msg.content;
+                    try {
+                        renderedContent = marked.parse(msg.content);
+                    } catch(e) {
+                        console.error("Markdown parse error", e);
+                    }
 
-                html = `
-                    <div class="message ${cls}">
-                        <div class="avatar" style="width: 32px; height: 32px; font-size: 12px; background: ${isSelf ? '#1f6feb' : '#238636'}">${avatar}</div>
-                        <div>
-                            <div class="message-meta" style="text-align: ${isSelf ? 'right' : 'left'}">${isSelf ? '' : msg.user}</div>
-                            <div class="message-content markdown-body">
-                                ${renderedContent}
+                    html = `
+                        <div class="message ${cls}">
+                            <div class="avatar" style="width: 32px; height: 32px; font-size: 12px; background: ${isSelf ? '#1f6feb' : '#238636'}">${avatar}</div>
+                            <div>
+                                <div class="message-meta" style="text-align: ${isSelf ? 'right' : 'left'}">${isSelf ? '' : msg.user}</div>
+                                <div class="message-content markdown-body">
+                                    ${renderedContent}
+                                </div>
                             </div>
                         </div>
-                    </div>
-                `;
+                    `;
+                }
             }
             
-            area.append(html);
-            area.scrollTop(area[0].scrollHeight);
+            if (html) {
+                area.append(html);
+                area.scrollTop(area[0].scrollHeight);
+            }
         }
         
         $('#sendBtn').click(sendMessage);
