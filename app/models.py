@@ -7,6 +7,7 @@ class User(UserMixin, db.Model):
     __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(64), unique=True, index=True)
+    nickname = db.Column(db.String(64))  # Added nickname field
     email = db.Column(db.String(120), unique=True, index=True)
     password_hash = db.Column(db.String(128))
     is_banned = db.Column(db.Boolean, default=False)  # 封禁状态
@@ -43,6 +44,15 @@ class Room(db.Model):
     members = db.relationship('User', secondary=room_members, lazy='dynamic',
         backref=db.backref('rooms', lazy='dynamic'))
 
+class WSServer(db.Model):
+    __tablename__ = 'ws_servers'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(64), unique=True, index=True)
+    address = db.Column(db.String(128)) # ws://ip:port
+    description = db.Column(db.String(256))
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
     def __repr__(self):
         return f'<Room {self.name}>'
 
@@ -69,9 +79,38 @@ class Message(db.Model):
     content = db.Column(db.Text)
     timestamp = db.Column(db.DateTime, index=True, default=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    room_id = db.Column(db.Integer, db.ForeignKey('rooms.id'))
     
     # 建立关系
     author = db.relationship('User', backref=db.backref('messages', lazy='dynamic'))
 
     def __repr__(self):
         return f'<Message {self.id}>'
+
+class AIModel(db.Model):
+    __tablename__ = 'ai_models'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(128), nullable=False)
+    api_url = db.Column(db.String(256), nullable=False)
+    api_key = db.Column(db.String(256), nullable=False)
+    model_name = db.Column(db.String(128), nullable=False)
+    prompt = db.Column(db.Text, nullable=True)
+    token_usage = db.Column(db.Integer, default=0)
+    is_enabled = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<AIModel {self.name}>'
+
+class ThirdPartyApi(db.Model):
+    __tablename__ = 'third_party_apis'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(64), nullable=False)
+    command = db.Column(db.String(32), unique=True, nullable=False) # e.g. @weather
+    url = db.Column(db.String(256), nullable=False)
+    token = db.Column(db.String(256), nullable=True)
+    is_enabled = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<ThirdPartyApi {self.name}>'

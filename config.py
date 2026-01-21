@@ -6,12 +6,14 @@ class Config:
 
 class DevelopmentConfig(Config):
     DEBUG = True
+    basedir = os.path.abspath(os.path.dirname(__file__))
     SQLALCHEMY_DATABASE_URI = os.environ.get('DEV_DATABASE_URL') or \
-        'sqlite:///dev.db'
+        'sqlite:///' + os.path.join(basedir, 'database', 'zlxchat.db')
 
 class ProductionConfig(Config):
+    basedir = os.path.abspath(os.path.dirname(__file__))
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
-        'sqlite:///prod.db'
+        'sqlite:///' + os.path.join(basedir, 'database', 'zlxchat.db')
 
 config = {
     'development': DevelopmentConfig,

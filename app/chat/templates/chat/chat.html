@@ -8,18 +8,35 @@
     <link rel="stylesheet" href="{{ url_for('chat.static', filename='vendor/fontawesome/css/all.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('chat.static', filename='css/style.css') }}">
     <script src="{{ url_for('chat.static', filename='vendor/jquery/jquery-3.5.1.min.js') }}"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 <body>
     <div class="chat-wrapper">
+        <!-- Main Sidebar (Leftmost) -->
+        <div class="main-sidebar">
+            <div class="main-nav-item active" title="聊天" onclick="switchTab(this, 'chat')">
+                <i class="fas fa-comment-dots"></i>
+            </div>
+            <div class="main-nav-item" title="好友" onclick="switchTab(this, 'friend')">
+                <i class="fas fa-user-friends"></i>
+            </div>
+            <div class="main-nav-item" title="游戏" onclick="switchTab(this, 'game')">
+                <i class="fas fa-gamepad"></i>
+            </div>
+            <div class="main-nav-item" title="设置" style="margin-top: auto;" onclick="switchTab(this, 'settings')">
+                <i class="fas fa-cog"></i>
+            </div>
+            <a href="{{ url_for('chat.logout') }}" class="main-nav-item" title="退出" style="text-decoration: none;">
+                <i class="fas fa-sign-out-alt"></i>
+            </a>
+        </div>
+
         <!-- Sidebar -->
         <div class="sidebar">
             <div class="sidebar-header">
                 <div class="search-box">
                     <i class="fas fa-search"></i> 搜索
                 </div>
-                <a href="{{ url_for('chat.logout') }}" style="color: #8b949e; cursor:pointer; text-decoration: none;" title="退出">
-                    <i class="fas fa-sign-out-alt"></i>
-                </a>
             </div>
             
             <div class="chat-list">
@@ -46,7 +63,7 @@
             <div class="chat-top-bar">
                 <div style="font-weight: bold;">{{ server }}</div>
                 <div>
-                    <i class="fas fa-ellipsis-h" style="color: #8b949e; cursor: pointer;"></i>
+                    <i class="fas fa-ellipsis-h" style="color: #8b949e; cursor: pointer;" onclick="toggleUserSidebar()" title="在线用户"></i>
                 </div>
             </div>
             
@@ -56,8 +73,13 @@
             </div>
             
             <div class="input-area">
+                <!-- Emoji Panel -->
+                <div class="emoji-panel" id="emojiPanel" style="display: none;">
+                    <div class="emoji-grid" id="emojiGrid"></div>
+                </div>
+
                 <div class="toolbar">
-                    <i class="far fa-smile"></i>
+                    <i class="far fa-smile" id="emojiBtn" title="表情"></i>
                     <i class="far fa-folder"></i>
                     <i class="fas fa-cut"></i>
                     <i class="far fa-comment-dots"></i>
@@ -70,6 +92,58 @@
         </div>
     </div>
 
+    <!-- Weather Video Overlay -->
+    <div id="weatherOverlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 9999; display: none; pointer-events: none;">
+        <video id="weatherVideo" style="width: 100%; height: 100%; object-fit: cover;" muted></video>
+    </div>
+
+    <!-- User Sidebar -->
+    <div class="user-sidebar" id="userSidebar">
+        <div class="user-sidebar-header">
+            <span>在线用户(<span id="userCount">0</span>)</span>
+            <i class="fas fa-times close-sidebar" onclick="toggleUserSidebar()"></i>
+        </div>
+        <div class="user-list" id="userList">
+            <!-- User items injected here -->
+        </div>
+    </div>
+
+    <!-- Settings Sidebar -->
+    <div class="settings-sidebar" id="settingsSidebar">
+        <div class="settings-sidebar-header">
+            <span>设置</span>
+            <i class="fas fa-times close-sidebar" onclick="closeSettingsSidebar()"></i>
+        </div>
+        <div class="settings-list">
+            <div class="setting-item">
+                <span class="setting-label">新消息提示音</span>
+                <label class="switch">
+                    <input type="checkbox" id="toggleMsgSound" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div class="setting-item">
+                <span class="setting-label">好友上线提示音</span>
+                <label class="switch">
+                    <input type="checkbox" id="toggleUserSound" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div class="setting-item">
+                <span class="setting-label">发送消息提示音</span>
+                <label class="switch">
+                    <input type="checkbox" id="toggleSelfSound" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <!-- Audio Elements -->
+    <audio id="audioMsgComing" src="{{ url_for('chat.static', filename='mp3/msgcoming.mp3') }}" preload="auto"></audio>
+    <audio id="audioUserComing" src="{{ url_for('chat.static', filename='mp3/usercoming.mp3') }}" preload="auto"></audio>
+    <audio id="audioUserSendMsg" src="{{ url_for('chat.static', filename='mp3/usersendmsg.mp3') }}" preload="auto"></audio>
+
     <script>
         const user = "{{ user }}";
         const room = "{{ server }}";
@@ -78,6 +152,58 @@
         const wsUrl = `${protocol}//${window.location.host}/chat/ws`;
         
         let ws;
+        let previousUserList = new Set();
+        let isFirstLoad = true;
+
+        // Load settings from localStorage
+        const settings = {
+            msgSound: localStorage.getItem('msgSound') !== 'false',
+            userSound: localStorage.getItem('userSound') !== 'false',
+            selfSound: localStorage.getItem('selfSound') !== 'false'
+        };
+
+        // Initialize checkboxes
+        $('#toggleMsgSound').prop('checked', settings.msgSound);
+        $('#toggleUserSound').prop('checked', settings.userSound);
+        $('#toggleSelfSound').prop('checked', settings.selfSound);
+
+        // Settings event listeners
+        $('#toggleMsgSound').change(function() {
+            settings.msgSound = this.checked;
+            localStorage.setItem('msgSound', this.checked);
+        });
+        $('#toggleUserSound').change(function() {
+            settings.userSound = this.checked;
+            localStorage.setItem('userSound', this.checked);
+        });
+        $('#toggleSelfSound').change(function() {
+            settings.selfSound = this.checked;
+            localStorage.setItem('selfSound', this.checked);
+        });
+
+        function playSound(type) {
+            let audioId = '';
+            let shouldPlay = false;
+
+            if (type === 'msg' && settings.msgSound) {
+                audioId = 'audioMsgComing';
+                shouldPlay = true;
+            } else if (type === 'user' && settings.userSound) {
+                audioId = 'audioUserComing';
+                shouldPlay = true;
+            } else if (type === 'self' && settings.selfSound) {
+                audioId = 'audioUserSendMsg';
+                shouldPlay = true;
+            }
+
+            if (shouldPlay && audioId) {
+                const audio = document.getElementById(audioId);
+                if (audio) {
+                    audio.currentTime = 0;
+                    audio.play().catch(e => console.log("Audio play failed:", e));
+                }
+            }
+        }
 
         function connect() {
             ws = new WebSocket(wsUrl);
@@ -95,7 +221,19 @@
             
             ws.onmessage = function(event) {
                 const msg = JSON.parse(event.data);
-                appendMessage(msg);
+                if (msg.type === 'users') {
+                    updateUserList(msg.users, msg.count);
+                } else if (msg.type === 'stream_start') {
+                    startStreamMessage(msg);
+                } else if (msg.type === 'stream_chunk') {
+                    appendStreamChunk(msg);
+                } else if (msg.type === 'stream_end') {
+                    endStreamMessage(msg);
+                } else if (msg.type === 'weather') {
+                    displayWeather(msg);
+                } else {
+                    appendMessage(msg);
+                }
             };
             
             ws.onclose = function() {
@@ -111,6 +249,290 @@
         
         connect();
         
+        let currentStreamId = null;
+        let currentStreamContent = "";
+
+        function startStreamMessage(msg) {
+            currentStreamId = 'stream-' + Date.now();
+            currentStreamContent = "";
+            const area = $('#messageArea');
+            const avatar = msg.user ? msg.user[0].toUpperCase() : '?';
+            
+            playSound('msg');
+
+            const html = `
+                <div class="message other" id="${currentStreamId}">
+                    <div class="avatar" style="width: 32px; height: 32px; font-size: 12px; background: #238636">${avatar}</div>
+                    <div>
+                        <div class="message-meta" style="text-align: left">${msg.user}</div>
+                        <div class="message-content markdown-body">
+                            <span class="typing-indicator">...</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            area.append(html);
+            area.scrollTop(area[0].scrollHeight);
+        }
+
+        function appendStreamChunk(msg) {
+            if (currentStreamId) {
+                currentStreamContent += msg.content;
+                const contentDiv = $(`#${currentStreamId} .message-content`);
+                try {
+                    contentDiv.html(marked.parse(currentStreamContent));
+                } catch(e) {
+                    contentDiv.text(currentStreamContent);
+                }
+                const area = $('#messageArea');
+                area.scrollTop(area[0].scrollHeight);
+            }
+        }
+
+        function endStreamMessage(msg) {
+            currentStreamId = null;
+            currentStreamContent = "";
+        }
+
+        function displayWeather(msg) {
+            // 1. Play Video
+            const data = msg.data;
+            // Try to find weather condition from data. 
+            // We assume backend returns raw JSON. We need to extract weather type.
+            // Adjust this based on actual API response structure.
+            // Example structure guess: { data: { type: '晴', wendu: '25', ... } }
+            
+            let weatherType = '晴';
+            let city = '未知';
+            let temp = '';
+            let wind = '';
+            
+            // Heuristic parsing
+            if (data.data) {
+                if (data.data.type) weatherType = data.data.type;
+                if (data.data.city) city = data.data.city;
+                if (data.data.wendu) temp = data.data.wendu;
+                if (data.data.fengxiang) wind = data.data.fengxiang;
+            } else if (data.weather) {
+                weatherType = data.weather;
+            }
+            
+            // Map to video file
+            let videoFile = 'sun.mp4';
+            if (weatherType.includes('雨')) videoFile = 'rain.mp4';
+            else if (weatherType.includes('雪')) videoFile = 'snow.mp4';
+            else if (weatherType.includes('雷')) videoFile = 'thunder.mp4';
+            else if (weatherType.includes('风')) videoFile = 'wind.mp4';
+            else if (weatherType.includes('阴') || weatherType.includes('云')) videoFile = 'sun.mp4'; // No cloud video provided, use sun or maybe wind?
+
+            const videoPath = `{{ url_for('chat.static', filename='weather/') }}${videoFile}`;
+            const overlay = $('#weatherOverlay');
+            const video = $('#weatherVideo');
+            
+            video.attr('src', videoPath);
+            overlay.fadeIn();
+            video[0].play();
+            
+            // Hide after video ends or 5 seconds
+            video.on('ended', function() {
+                overlay.fadeOut();
+            });
+            // Fallback if no ended event or loop
+            setTimeout(() => {
+                overlay.fadeOut();
+            }, 8000);
+
+            // 2. Display Card
+            const area = $('#messageArea');
+            const html = `
+                <div class="message other">
+                     <div class="avatar" style="width: 32px; height: 32px; font-size: 12px; background: #e6a23c">天</div>
+                     <div>
+                        <div class="message-meta">小天气</div>
+                        <div class="message-content weather-card">
+                            <div class="weather-header">
+                                <span class="weather-city">${city}</span>
+                                <span class="weather-time">${msg.timestamp}</span>
+                            </div>
+                            <div class="weather-main">
+                                <div class="weather-icon">
+                                    <i class="fas ${getWeatherIcon(weatherType)}"></i>
+                                </div>
+                                <div class="weather-temp">${temp}°C</div>
+                            </div>
+                            <div class="weather-details">
+                                <div>${weatherType}</div>
+                                <div>${wind}</div>
+                            </div>
+                        </div>
+                     </div>
+                </div>
+            `;
+            area.append(html);
+            area.scrollTop(area[0].scrollHeight);
+            playSound('msg');
+        }
+
+        function getWeatherIcon(type) {
+            if (type.includes('雨')) return 'fa-cloud-rain';
+            if (type.includes('雪')) return 'fa-snowflake';
+            if (type.includes('雷')) return 'fa-bolt';
+            if (type.includes('风')) return 'fa-wind';
+            if (type.includes('晴')) return 'fa-sun';
+            if (type.includes('云')) return 'fa-cloud';
+            return 'fa-sun';
+        }
+
+        function renderWeatherCard(msg, data) {
+            let weatherType = '晴';
+            let city = '未知';
+            let temp = '';
+            let wind = '';
+            
+            if (data.data) {
+                if (data.data.type) weatherType = data.data.type;
+                if (data.data.city) city = data.data.city;
+                if (data.data.wendu) temp = data.data.wendu;
+                if (data.data.fengxiang) wind = data.data.fengxiang;
+            } else if (data.weather) {
+                weatherType = data.weather;
+            }
+            
+            return `
+                <div class="message other">
+                     <div class="avatar" style="width: 32px; height: 32px; font-size: 12px; background: #e6a23c">天</div>
+                     <div>
+                        <div class="message-meta">小天气</div>
+                        <div class="message-content weather-card">
+                            <div class="weather-header">
+                                <span class="weather-city">${city}</span>
+                                <span class="weather-time">${msg.timestamp}</span>
+                            </div>
+                            <div class="weather-main">
+                                <div class="weather-icon">
+                                    <i class="fas ${getWeatherIcon(weatherType)}"></i>
+                                </div>
+                                <div class="weather-temp">${temp}°C</div>
+                            </div>
+                            <div class="weather-details">
+                                <div>${weatherType}</div>
+                                <div>${wind}</div>
+                            </div>
+                        </div>
+                     </div>
+                </div>
+            `;
+        }
+
+        function renderMusicGift(msg, data, specialPayload) {
+            const musicData = specialPayload.data.data || specialPayload.data; // Handle potential nesting
+            const cover = musicData.cover || 'https://via.placeholder.com/150';
+            const title = musicData.name || '未知歌曲';
+            const artist = musicData.artistsname || '未知歌手';
+            const url = musicData.url || '';
+            const uniqueId = 'music-' + Date.now() + Math.random().toString(36).substr(2, 9);
+
+            return `
+                <div class="message other">
+                    <div class="avatar" style="width: 32px; height: 32px; font-size: 12px; background: #d9534f"><i class="fas fa-music"></i></div>
+                    <div>
+                        <div class="message-meta">小音乐</div>
+                        <div class="music-gift" onclick="openMusicPlayer('${uniqueId}', '${cover}', '${title}', '${artist}', '${url}', this)">
+                            <div class="music-gift-icon"></div>
+                            <div class="music-gift-content">
+                                <div class="music-gift-title">送你一首《${title}》</div>
+                                <div class="music-gift-desc">点击领取音乐包</div>
+                            </div>
+                        </div>
+                        <div id="${uniqueId}" style="display:none;"></div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderMusicPlayerHtml(cover, title, artist, url) {
+             return `
+                <div class="music-card">
+                    <div class="music-card-cover" style="background-image: url('${cover}')"></div>
+                    <div class="music-card-info">
+                        <div class="music-card-title">${title}</div>
+                        <div class="music-card-artist">${artist}</div>
+                    </div>
+                    <div class="music-card-controls">
+                        <div class="music-play-btn" onclick="togglePlay(this, '${url}')">
+                            <i class="fas fa-play"></i>
+                        </div>
+                    </div>
+                    <audio src="${url}" onended="resetPlayBtn(this)"></audio>
+                </div>
+            `;
+        }
+
+        window.openMusicPlayer = function(id, cover, title, artist, url, element) {
+            // Replace Gift with Player
+            const container = document.getElementById(id);
+            if (container) {
+                container.innerHTML = renderMusicPlayerHtml(cover, title, artist, url);
+                container.style.display = 'block';
+                element.style.display = 'none'; // Hide gift
+            }
+        };
+
+        window.togglePlay = function(btn, url) {
+            const container = btn.closest('.music-card');
+            const audio = container.querySelector('audio');
+            const icon = btn.querySelector('i');
+            
+            // Pause all other audios
+            document.querySelectorAll('audio').forEach(a => {
+                if (a !== audio) {
+                    a.pause();
+                    // Reset other buttons
+                    const otherBtn = a.closest('.music-card')?.querySelector('.music-play-btn i');
+                    if (otherBtn) {
+                        otherBtn.className = 'fas fa-play';
+                    }
+                }
+            });
+
+            if (audio.paused) {
+                audio.play();
+                icon.className = 'fas fa-pause';
+            } else {
+                audio.pause();
+                icon.className = 'fas fa-play';
+            }
+        };
+
+        window.resetPlayBtn = function(audio) {
+            const btn = audio.closest('.music-card').querySelector('.music-play-btn i');
+            if (btn) btn.className = 'fas fa-play';
+        };
+
+        function renderMusicPrivate(msg, data, specialPayload) {
+            // Only render if target matches current user
+            if (specialPayload.target_user !== user) {
+                // Return empty string or hidden div
+                 return '';
+            }
+
+            const musicData = specialPayload.data.data || specialPayload.data;
+            const cover = musicData.cover || 'https://via.placeholder.com/150';
+            const title = musicData.name || '未知歌曲';
+            const artist = musicData.artistsname || '未知歌手';
+            const url = musicData.url || '';
+
+            return `
+                <div class="message other">
+                    <div class="avatar" style="width: 32px; height: 32px; font-size: 12px; background: #6f42c1"><i class="fas fa-headphones"></i></div>
+                    <div>
+                        <div class="message-meta">小音乐 (私享)</div>
+                        ${renderMusicPlayerHtml(cover, title, artist, url)}
+                    </div>
+                </div>
+            `;
+        }
+
         function appendMessage(msg) {
             const area = $('#messageArea');
             let html = '';
@@ -118,25 +540,68 @@
             if (msg.type === 'system') {
                 html = `<div class="system-message">${msg.content} <span style="font-size:10px;">${msg.timestamp}</span></div>`;
             } else if (msg.type === 'chat') {
-                const isSelf = msg.user === user;
-                const cls = isSelf ? 'self' : 'other';
-                const avatar = isSelf ? user[0].toUpperCase() : (msg.user ? msg.user[0].toUpperCase() : '?');
-                
-                html = `
-                    <div class="message ${cls}">
-                        <div class="avatar" style="width: 32px; height: 32px; font-size: 12px; background: ${isSelf ? '#1f6feb' : '#238636'}">${avatar}</div>
-                        <div>
-                            <div class="message-meta" style="text-align: ${isSelf ? 'right' : 'left'}">${isSelf ? '' : msg.user}</div>
-                            <div class="message-content">
-                                ${msg.content}
+                // Check for SPECIAL content
+                if (msg.content && msg.content.startsWith('SPECIAL:')) {
+                    try {
+                        const specialJson = msg.content.substring(8);
+                        const specialPayload = JSON.parse(specialJson);
+                        const type = specialPayload.type;
+                        
+                        if (type === 'weather') {
+                            html = renderWeatherCard(msg, specialPayload.data);
+                        } else if (type === 'music_gift') {
+                            html = renderMusicGift(msg, specialPayload.data, specialPayload);
+                        } else if (type === 'music_private') {
+                            html = renderMusicPrivate(msg, specialPayload.data, specialPayload);
+                        } else {
+                            // Fallback to text
+                            html = `<div class="system-message">Unknown Special Message: ${type}</div>`;
+                        }
+                    } catch(e) {
+                        console.error("Special msg parse error", e);
+                        html = `<div class="system-message">Error parsing special message</div>`;
+                    }
+                } else {
+                    // Normal Chat Message
+                    const isSelf = msg.user === user;
+                    
+                    // Play sound only if not history
+                    if (!msg.is_history) {
+                        if (isSelf) {
+                            playSound('self');
+                        } else {
+                            playSound('msg');
+                        }
+                    }
+
+                    const cls = isSelf ? 'self' : 'other';
+                    const avatar = isSelf ? user[0].toUpperCase() : (msg.user ? msg.user[0].toUpperCase() : '?');
+                    
+                    let renderedContent = msg.content;
+                    try {
+                        renderedContent = marked.parse(msg.content);
+                    } catch(e) {
+                        console.error("Markdown parse error", e);
+                    }
+
+                    html = `
+                        <div class="message ${cls}">
+                            <div class="avatar" style="width: 32px; height: 32px; font-size: 12px; background: ${isSelf ? '#1f6feb' : '#238636'}">${avatar}</div>
+                            <div>
+                                <div class="message-meta" style="text-align: ${isSelf ? 'right' : 'left'}">${isSelf ? '' : msg.user}</div>
+                                <div class="message-content markdown-body">
+                                    ${renderedContent}
+                                </div>
                             </div>
                         </div>
-                    </div>
-                `;
+                    `;
+                }
             }
             
-            area.append(html);
-            area.scrollTop(area[0].scrollHeight);
+            if (html) {
+                area.append(html);
+                area.scrollTop(area[0].scrollHeight);
+            }
         }
         
         $('#sendBtn').click(sendMessage);
@@ -158,6 +623,121 @@
                 input.val('');
             }
         }
+        
+        function toggleUserSidebar() {
+            $('.user-sidebar').toggleClass('active');
+            if ($('.user-sidebar').hasClass('active')) {
+                $('.settings-sidebar').removeClass('active');
+            }
+        }
+
+        function switchTab(element, tabName) {
+            // Remove active from all nav items
+            $('.main-nav-item').removeClass('active');
+            // Add active to clicked item
+            $(element).addClass('active');
+
+            if (tabName === 'settings') {
+                $('.settings-sidebar').addClass('active');
+                $('.user-sidebar').removeClass('active');
+            } else {
+                $('.settings-sidebar').removeClass('active');
+            }
+        }
+
+        function closeSettingsSidebar() {
+            $('.settings-sidebar').removeClass('active');
+            // Revert active state to Chat
+            $('.main-nav-item').removeClass('active');
+            $('.main-nav-item[title="聊天"]').addClass('active');
+        }
+
+        function updateUserList(users, count) {
+            $('#userCount').text(count);
+            const list = $('#userList');
+            list.empty();
+            
+            // Check for new users
+            const currentUserSet = new Set(users);
+            
+            if (!isFirstLoad) {
+                for (let u of currentUserSet) {
+                    if (!previousUserList.has(u) && u !== user) {
+                        playSound('user');
+                        break; // Play once per update batch
+                    }
+                }
+            }
+            
+            previousUserList = currentUserSet;
+            isFirstLoad = false;
+
+            users.forEach(u => {
+                const isSelf = u === user;
+                const html = `
+                    <div class="user-item">
+                        <div class="avatar" style="width: 30px; height: 30px; font-size: 12px; background: ${isSelf ? '#1f6feb' : '#238636'}">
+                            ${u[0].toUpperCase()}
+                        </div>
+                        <div class="user-name" style="${isSelf ? 'color: #58a6ff;' : ''}">
+                            ${u} ${isSelf ? '(我)' : ''}
+                        </div>
+                    </div>
+                `;
+                list.append(html);
+            });
+        }
+
+        // Emoji Logic
+        const emojiBtn = document.getElementById('emojiBtn');
+        const emojiPanel = document.getElementById('emojiPanel');
+        const emojiGrid = document.getElementById('emojiGrid');
+        const messageInput = document.getElementById('messageInput');
+        
+        const emojis = [
+            '😀', '😁', '😂', '🤣', '😃', '😄', '😅', '😆', '😉', '😊', '😋', '😎',
+            '😍', '😘', '🥰', '😗', '😙', '😚', '🙂', '🤗', '🤩', '🤔', '🤨', '😐',
+            '😑', '😶', '🙄', '😏', '😣', '😥', '😮', '🤐', '😯', '😪', '😫', '😴',
+            '😌', '😛', '😜', '😝', '🤤', '😒', '😓', '😔', '😕', '🙃', '🤑', '😲',
+            '☹️', '🙁', '😖', '😞', '😟', '😤', '😢', '😭', '😦', '😧', '😨', '😩',
+            '🤯', '😬', '😰', '😱', '🥵', '🥶', '😳', '🤪', '😵', '😡', '😠', '🤬',
+            '😷', '🤒', '🤕', '🤢', '🤮', '🤧', '😇', '🤠', '🤡', '🥳', '🥴', '🥺',
+            '🤥', '🤫', '🤭', '🧐', '🤓', '😈', '👿', '👹', '👺', '💀', '👻', '👽',
+            '🤖', '💩', '😺', '😸', '😹', '😻', '😼', '😽', '🙀', '😿', '😾', '👋',
+            '🤚', '🖐', '✋', '🖖', '👌', '🤏', '✌️', '🤞', '🤟', '🤘', '🤙', '👈',
+            '👉', '👆', '🖕', '👇', '☝️', '👍', '👎', '✊', '👊', '🤛', '🤜', '👏',
+            '🙌', '👐', '🤲', '🤝', '🙏', '✍️', '💅', '🤳', '💪', '🦾', '🦵', '🦿',
+            '🦶', '👂', '🦻', '👃', '🧠', '🦷', '🦴', '👀', '👁️', '👅', '👄', '💋'
+        ];
+
+        // Populate Emojis
+        emojis.forEach(emoji => {
+            const span = document.createElement('span');
+            span.className = 'emoji-item';
+            span.textContent = emoji;
+            span.onclick = function() {
+                messageInput.value += emoji;
+                messageInput.focus();
+            };
+            emojiGrid.appendChild(span);
+        });
+
+        // Toggle Panel
+        emojiBtn.onclick = function(e) {
+            e.stopPropagation();
+            if (emojiPanel.style.display === 'none') {
+                emojiPanel.style.display = 'block';
+            } else {
+                emojiPanel.style.display = 'none';
+            }
+        };
+
+        // Close on click outside
+        document.addEventListener('click', function(e) {
+            if (emojiPanel.style.display !== 'none' && !emojiPanel.contains(e.target) && e.target !== emojiBtn) {
+                emojiPanel.style.display = 'none';
+            }
+        });
     </script>
 </body>
 </html>

@@ -1,11 +1,12 @@
-from flask import render_template, request, redirect, url_for, flash, session, current_app
+from flask import render_template, request, redirect, url_for, flash, session, current_app, jsonify
 from . import admin
-from ..models import AdminUser, User, Room
+from ..models import AdminUser, User, Room, WSServer, AIModel, ThirdPartyApi
 from ..extensions import db
 from functools import wraps
 import os
 import time
 from werkzeug.utils import secure_filename
+import openai
 
 # 管理员登录验证装饰器
 def admin_required(f):
@@ -15,6 +16,118 @@ def admin_required(f):
             return redirect(url_for('admin.login', next=request.url))
         return f(*args, **kwargs)
     return decorated_function
+
+@admin.route('/')
+@admin_required
+def index():
+    user_count = User.query.count()
+    room_count = Room.query.count()
+    server_count = WSServer.query.count()
+    # Assuming layout handles menu rendering
+    return render_template('admin/index.html', user_count=user_count, room_count=room_count, server_count=server_count)
+
+@admin.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        user = AdminUser.query.filter_by(username=username).first()
+        if user and user.check_password(password):
+            session['admin_user_id'] = user.id
+            return redirect(url_for('admin.index'))
+        flash('用户名或密码错误', 'danger')
+    return render_template('admin/login.html')
+
+@admin.route('/logout')
+def logout():
+    session.pop('admin_user_id', None)
+    return redirect(url_for('admin.login'))
+
+@admin.route('/users')
+@admin_required
+def users():
+    page = request.args.get('page', 1, type=int)
+    pagination = User.query.paginate(page=page, per_page=12, error_out=False)
+    users = pagination.items
+    return render_template('admin/user_list.html', users=users, pagination=pagination)
+
+@admin.route('/users/<int:id>/ban', methods=['POST'])
+@admin_required
+def ban_user(id):
+    user = User.query.get_or_404(id)
+    user.is_banned = not user.is_banned
+    db.session.commit()
+    return {'status': 'success', 'message': '操作成功'}
+
+@admin.route('/users/<int:id>/delete', methods=['POST'])
+@admin_required
+def delete_user(id):
+    user = User.query.get_or_404(id)
+    db.session.delete(user)
+    db.session.commit()
+    return {'status': 'success', 'message': '用户已删除'}
+
+@admin.route('/servers')
+@admin_required
+def servers():
+    page = request.args.get('page', 1, type=int)
+    pagination = WSServer.query.paginate(page=page, per_page=12, error_out=False)
+    servers = pagination.items
+    return render_template('admin/servers.html', servers=servers, pagination=pagination)
+
+@admin.route('/servers/add', methods=['POST'])
+@admin_required
+def add_server():
+    name = request.form.get('name')
+    address = request.form.get('address')
+    description = request.form.get('description')
+    
+    if WSServer.query.filter_by(name=name).first():
+        return {'status': 'error', 'message': '服务器名称已存在'}
+    
+    server = WSServer(name=name, address=address, description=description)
+    db.session.add(server)
+    db.session.commit()
+    return {'status': 'success', 'message': '添加成功'}
+
+@admin.route('/servers/<int:id>', methods=['GET'])
+@admin_required
+def get_server(id):
+    server = WSServer.query.get_or_404(id)
+    return {
+        'id': server.id,
+        'name': server.name,
+        'address': server.address,
+        'description': server.description,
+        'is_active': server.is_active,
+        'created_at': server.created_at.strftime('%Y-%m-%d %H:%M:%S')
+    }
+
+@admin.route('/servers/<int:id>/edit', methods=['POST'])
+@admin_required
+def edit_server(id):
+    server = WSServer.query.get_or_404(id)
+    server.name = request.form.get('name')
+    server.address = request.form.get('address')
+    server.description = request.form.get('description')
+    db.session.commit()
+    return {'status': 'success', 'message': '修改成功'}
+
+@admin.route('/servers/<int:id>/delete', methods=['POST'])
+@admin_required
+def delete_server(id):
+    server = WSServer.query.get_or_404(id)
+    db.session.delete(server)
+    db.session.commit()
+    return {'status': 'success', 'message': '删除成功'}
+
+@admin.route('/servers/<int:id>/toggle', methods=['POST'])
+@admin_required
+def toggle_server(id):
+    server = WSServer.query.get_or_404(id)
+    server.is_active = not server.is_active
+    db.session.commit()
+    return {'status': 'success', 'message': '状态更新成功'}
 
 @admin.route('/rooms')
 @admin_required
@@ -35,125 +148,36 @@ def room_members(room_id):
             'username': m.username,
             'is_banned': m.is_banned
         })
-    return {'code': 0, 'data': members, 'count': len(members)}
+    return {'data': members}
 
-@admin.route('/rooms/<int:room_id>/delete', methods=['POST'])
+@admin.route('/rooms/<int:id>/delete', methods=['POST'])
 @admin_required
-def delete_room(room_id):
-    room = Room.query.get_or_404(room_id)
+def delete_room(id):
+    room = Room.query.get_or_404(id)
     db.session.delete(room)
     db.session.commit()
-    return {'status': 'success', 'message': '房间已删除'}
+    return {'status': 'success', 'message': '删除成功'}
 
-@admin.route('/rooms/<int:room_id>/toggle_ban', methods=['POST'])
+@admin.route('/rooms/<int:id>/ban', methods=['POST'])
 @admin_required
-def toggle_room_ban(room_id):
-    room = Room.query.get_or_404(room_id)
+def ban_room(id):
+    room = Room.query.get_or_404(id)
     room.is_banned = not room.is_banned
     db.session.commit()
-    status = '封禁' if room.is_banned else '解封'
-    return {'status': 'success', 'message': f'房间已{status}', 'is_banned': room.is_banned}
+    return {'status': 'success', 'message': '操作成功'}
 
-@admin.route('/rooms/<int:room_id>')
+@admin.route('/rooms/<int:id>', methods=['GET'])
 @admin_required
-def view_room(room_id):
-    # 返回房间详情用于弹窗
-    room = Room.query.get_or_404(room_id)
+def get_room(id):
+    room = Room.query.get_or_404(id)
     return {
         'id': room.id,
         'name': room.name,
         'description': room.description,
-        'creator': room.creator.username if room.creator else '未知',
-        'created_at': room.created_at.strftime('%Y-%m-%d %H:%M:%S'),
-        'member_count': room.members.count(),
-        'banned_count': room.members.filter_by(is_banned=True).count(),
-        'is_banned': room.is_banned
+        'creator': room.creator.username if room.creator else 'Unknown',
+        'created_at': room.created_at.strftime('%Y-%m-%d'),
+        'member_count': room.members.count()
     }
-
-@admin.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-        
-        user = AdminUser.query.filter_by(username=username).first()
-        if user and user.check_password(password):
-            session['admin_user_id'] = user.id
-            session['admin_username'] = user.username
-            flash('登录成功', 'success')
-            return redirect(url_for('admin.index'))
-        else:
-            flash('用户名或密码错误', 'danger')
-            
-    return render_template('admin/login.html')
-
-@admin.route('/logout')
-def logout():
-    session.pop('admin_user_id', None)
-    session.pop('admin_username', None)
-    flash('已退出登录', 'info')
-    return redirect(url_for('admin.login'))
-
-from datetime import datetime, date
-
-@admin.route('/')
-@admin_required
-def index():
-    user_count = User.query.count()
-    banned_count = User.query.filter_by(is_banned=True).count()
-    admin_count = AdminUser.query.count()
-    
-    # 今日新增
-    today_start = datetime.combine(date.today(), datetime.min.time())
-    new_users_today = User.query.filter(User.created_at >= today_start).count()
-    
-    return render_template('admin/index.html', 
-                           user_count=user_count, 
-                           banned_count=banned_count, 
-                           admin_count=admin_count,
-                           new_users_today=new_users_today)
-
-@admin.route('/users')
-@admin_required
-def user_list():
-    page = request.args.get('page', 1, type=int)
-    pagination = User.query.paginate(page=page, per_page=20, error_out=False)
-    users = pagination.items
-    return render_template('admin/user_list.html', users=users, pagination=pagination)
-
-@admin.route('/users/<int:user_id>/toggle_ban', methods=['POST'])
-@admin_required
-def toggle_ban(user_id):
-    user = User.query.get_or_404(user_id)
-    user.is_banned = not user.is_banned
-    db.session.commit()
-    status = '封禁' if user.is_banned else '解封'
-    return {'status': 'success', 'message': f'用户已{status}', 'is_banned': user.is_banned}
-
-@admin.route('/users/<int:user_id>/delete', methods=['POST'])
-@admin_required
-def delete_user(user_id):
-    user = User.query.get_or_404(user_id)
-    db.session.delete(user)
-    db.session.commit()
-    return {'status': 'success', 'message': '用户已删除'}
-
-@admin.route('/init_admin')
-def init_admin():
-    # 临时路由，用于初始化管理员账号
-    if not AdminUser.query.filter_by(username='admin').first():
-        admin = AdminUser(username='admin')
-        admin.set_password('admin888')
-        db.session.add(admin)
-        db.session.commit()
-        return "管理员账号创建成功"
-    return "管理员账号已存在"
-
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
-
-def allowed_file(filename):
-    return '.' in filename and \
-           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 @admin.route('/profile', methods=['GET', 'POST'])
 @admin_required
@@ -161,27 +185,18 @@ def profile():
     user = AdminUser.query.get(session['admin_user_id'])
     if request.method == 'POST':
         nickname = request.form.get('nickname')
-        if nickname:
-            user.nickname = nickname
+        user.nickname = nickname
         
-        file = request.files.get('avatar')
-        print(f"DEBUG: request.files = {request.files}") # Debug
-        print(f"DEBUG: form data = {request.form}") # Debug
-        if file:
-            print(f"DEBUG: filename = {file.filename}")
-        
-        if file and file.filename:
-            if allowed_file(file.filename):
-                # 获取文件后缀
-                ext = file.filename.rsplit('.', 1)[1].lower()
-                # 使用时间戳生成新文件名，避免中文乱码和重名
-                filename = f"{int(time.time())}_{os.urandom(4).hex()}.{ext}"
-                
-                # Save path: app/admin/static/admin/avatars
-                upload_folder = os.path.join(current_app.root_path, 'admin', 'static', 'admin', 'avatars')
+        # Handle avatar upload
+        if 'avatar' in request.files:
+            file = request.files['avatar']
+            if file and file.filename != '':
+                # Ensure uploads directory exists
+                upload_folder = os.path.join(current_app.static_folder, 'uploads', 'avatars')
                 if not os.path.exists(upload_folder):
                     os.makedirs(upload_folder)
                 
+                filename = secure_filename(f"admin_{user.id}_{int(time.time())}.png")
                 try:
                     file.save(os.path.join(upload_folder, filename))
                     user.avatar = filename
@@ -218,3 +233,208 @@ def security():
             return redirect(url_for('admin.logout'))
             
     return render_template('admin/security.html')
+
+# ================= AI Model Engine Routes =================
+
+@admin.route('/ai-models')
+@admin_required
+def ai_models():
+    page = request.args.get('page', 1, type=int)
+    per_page = 6
+    pagination = AIModel.query.order_by(AIModel.created_at.desc()).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+    models = pagination.items
+    return render_template('admin/ai_models.html', models=models, pagination=pagination)
+
+@admin.route('/ai-models/add', methods=['POST'])
+@admin_required
+def ai_model_add():
+    name = request.form.get('name')
+    api_url = request.form.get('api_url')
+    api_key = request.form.get('api_key')
+    model_name = request.form.get('model_name')
+    prompt = request.form.get('prompt')
+    
+    if not all([name, api_url, api_key, model_name]):
+        flash('请填写完整信息', 'danger')
+        return redirect(url_for('admin.ai_models'))
+        
+    model = AIModel(
+        name=name,
+        api_url=api_url,
+        api_key=api_key,
+        model_name=model_name,
+        prompt=prompt
+    )
+    db.session.add(model)
+    db.session.commit()
+    flash('模型添加成功', 'success')
+    return redirect(url_for('admin.ai_models'))
+
+@admin.route('/ai-models/edit/<int:id>', methods=['POST'])
+@admin_required
+def ai_model_edit(id):
+    model = AIModel.query.get_or_404(id)
+    model.name = request.form.get('name')
+    model.api_url = request.form.get('api_url')
+    model.api_key = request.form.get('api_key')
+    model.model_name = request.form.get('model_name')
+    model.prompt = request.form.get('prompt')
+    
+    db.session.commit()
+    flash('模型更新成功', 'success')
+    return redirect(url_for('admin.ai_models'))
+
+@admin.route('/ai-models/delete/<int:id>')
+@admin_required
+def ai_model_delete(id):
+    model = AIModel.query.get_or_404(id)
+    db.session.delete(model)
+    db.session.commit()
+    flash('模型已删除', 'success')
+    return redirect(url_for('admin.ai_models'))
+
+@admin.route('/ai-models/toggle/<int:id>')
+@admin_required
+def ai_model_toggle(id):
+    model = AIModel.query.get_or_404(id)
+    model.is_enabled = not model.is_enabled
+    db.session.commit()
+    status = '启用' if model.is_enabled else '禁用'
+    flash(f'模型已{status}', 'success')
+    return redirect(url_for('admin.ai_models'))
+
+@admin.route('/ai-models/test', methods=['POST'])
+@admin_required
+def ai_model_test():
+    data = request.json
+    api_url = data.get('api_url')
+    api_key = data.get('api_key')
+    model_name = data.get('model_name')
+    message = data.get('message')
+    history = data.get('history', [])
+    system_prompt = data.get('prompt', '')
+
+    try:
+        client = openai.OpenAI(
+            api_key=api_key,
+            base_url=api_url
+        )
+        
+        messages = []
+        # Add system prompt with Chinese instruction
+        if system_prompt:
+            # Append strong instruction to user provided prompt
+            system_prompt += "\\n\\nIMPORTANT: You must output in Chinese language only. 无论用户使用什么语言，请始终用中文回答。"
+            messages.append({"role": "system", "content": system_prompt})
+        else:
+            messages.append({"role": "system", "content": "You are a helpful assistant. Please answer in Chinese. 你是一个乐于助人的助手，请始终用中文回答所有问题。"})
+            
+        # Add history
+        if history:
+            messages.extend(history)
+            
+        # Add current message if provided separately
+        if message:
+            messages.append({"role": "user", "content": message})
+
+        response = client.chat.completions.create(
+            model=model_name,
+            messages=messages,
+            max_tokens=2048,
+            temperature=0.7
+        )
+        
+        reply = response.choices[0].message.content
+        return jsonify({'success': True, 'reply': reply})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+# ================= Interface Management Routes =================
+
+@admin.route('/apis')
+@admin_required
+def apis():
+    page = request.args.get('page', 1, type=int)
+    per_page = 12
+    pagination = ThirdPartyApi.query.order_by(ThirdPartyApi.created_at.desc()).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+    apis = pagination.items
+    return render_template('admin/apis.html', apis=apis, pagination=pagination)
+
+@admin.route('/apis/add', methods=['POST'])
+@admin_required
+def api_add():
+    name = request.form.get('name')
+    command = request.form.get('command')
+    url = request.form.get('url')
+    token = request.form.get('token')
+    
+    if not all([name, command, url]):
+        return {'status': 'error', 'message': '请填写完整信息'}
+        
+    if ThirdPartyApi.query.filter_by(command=command).first():
+        return {'status': 'error', 'message': '指令已存在'}
+        
+    api = ThirdPartyApi(
+        name=name,
+        command=command,
+        url=url,
+        token=token
+    )
+    db.session.add(api)
+    db.session.commit()
+    return {'status': 'success', 'message': '接口添加成功'}
+
+@admin.route('/apis/<int:id>/edit', methods=['POST'])
+@admin_required
+def api_edit(id):
+    api = ThirdPartyApi.query.get_or_404(id)
+    name = request.form.get('name')
+    command = request.form.get('command')
+    url = request.form.get('url')
+    token = request.form.get('token')
+
+    # Check if command exists for other APIs
+    existing = ThirdPartyApi.query.filter_by(command=command).first()
+    if existing and existing.id != id:
+        return {'status': 'error', 'message': '指令已存在'}
+
+    api.name = name
+    api.command = command
+    api.url = url
+    api.token = token
+    
+    db.session.commit()
+    return {'status': 'success', 'message': '接口更新成功'}
+
+@admin.route('/apis/<int:id>/delete', methods=['POST'])
+@admin_required
+def api_delete(id):
+    api = ThirdPartyApi.query.get_or_404(id)
+    db.session.delete(api)
+    db.session.commit()
+    return {'status': 'success', 'message': '接口已删除'}
+
+@admin.route('/apis/<int:id>/toggle', methods=['POST'])
+@admin_required
+def api_toggle(id):
+    api = ThirdPartyApi.query.get_or_404(id)
+    api.is_enabled = not api.is_enabled
+    db.session.commit()
+    return {'status': 'success', 'message': '状态更新成功'}
+
+@admin.route('/apis/<int:id>', methods=['GET'])
+@admin_required
+def get_api(id):
+    api = ThirdPartyApi.query.get_or_404(id)
+    return {
+        'id': api.id,
+        'name': api.name,
+        'command': api.command,
+        'url': api.url,
+        'token': api.token,
+        'is_enabled': api.is_enabled
+    }

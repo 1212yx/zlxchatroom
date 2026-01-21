@@ -22,7 +22,7 @@
         <div class="header-left">
             <i class="layui-icon layui-icon-shrink-right collapse-btn" id="collapse-btn"></i>
             <div class="breadcrumb">
-                Dashboard <span>/</span> <span class="current">{% block breadcrumb %}首页{% endblock %}</span>
+                控制台 <span>/</span> <span class="current">{% block breadcrumb %}首页{% endblock %}</span>
             </div>
         </div>
 
@@ -49,7 +49,7 @@
                 <!-- 首页 -->
                 <li class="layui-nav-item {% if request.endpoint == 'admin.index' %}layui-this{% endif %}">
                     <a href="{{ url_for('admin.index') }}">
-                        <i class="layui-icon layui-icon-home" style="margin-right: 10px;"></i> Dashboard
+                        <i class="layui-icon layui-icon-home" style="margin-right: 10px;"></i> 控制台
                     </a>
                 </li>
 
@@ -59,24 +59,39 @@
                         <i class="layui-icon layui-icon-user" style="margin-right: 10px;"></i> 用户管理
                     </a>
                     <dl class="layui-nav-child">
-                        <dd class="{% if request.endpoint == 'admin.user_list' %}layui-this{% endif %}">
-                            <a href="{{ url_for('admin.user_list') }}">用户列表</a>
+                        <dd class="{% if request.endpoint == 'admin.users' %}layui-this{% endif %}">
+                            <a href="{{ url_for('admin.users') }}">用户列表</a>
                         </dd>
                         <!-- 占位菜单，模仿图片 -->
                         <dd><a href="javascript:;">管理员管理</a></dd>
                     </dl>
                 </li>
 
-                <!-- 房间管理 -->
-                <li class="layui-nav-item {% if 'rooms' in request.endpoint %}layui-nav-itemed{% endif %}">
-                    <a href="javascript:;">
-                        <i class="layui-icon layui-icon-app" style="margin-right: 10px;"></i> 房间管理
-                    </a>
+                <!-- 采集管理 -->
+                <li class="layui-nav-item {{ 'layui-nav-itemed' if request.path.startswith('/admin/rooms') or request.path.startswith('/admin/servers') else '' }}">
+                    <a href="javascript:;"><i class="layui-icon layui-icon-app"></i><span class="menu-text"> 后台采集</span></a>
                     <dl class="layui-nav-child">
-                        <dd class="{% if request.endpoint == 'admin.rooms' %}layui-this{% endif %}">
-                            <a href="{{ url_for('admin.rooms') }}">房间列表</a>
+                        <dd class="{{ 'layui-this' if request.path.startswith('/admin/rooms') else '' }}">
+                            <a href="{{ url_for('admin.rooms') }}">房间管理</a>
+                        </dd>
+                        <dd class="{{ 'layui-this' if request.path.startswith('/admin/servers') else '' }}">
+                            <a href="{{ url_for('admin.servers') }}">ws服务器管理</a>
                         </dd>
                     </dl>
+                </li>
+
+                <!-- AI模型引擎 -->
+                <li class="layui-nav-item {% if request.path.startswith('/admin/ai-models') %}layui-this{% endif %}">
+                    <a href="{{ url_for('admin.ai_models') }}">
+                        <i class="layui-icon layui-icon-engine" style="margin-right: 10px;"></i> AI模型引擎
+                    </a>
+                </li>
+
+                <!-- 接口管理 -->
+                <li class="layui-nav-item {% if request.path.startswith('/admin/apis') %}layui-this{% endif %}">
+                    <a href="{{ url_for('admin.apis') }}">
+                        <i class="layui-icon layui-icon-link" style="margin-right: 10px;"></i> 接口管理
+                    </a>
                 </li>
 
                 <!-- 模拟其他菜单已移除 -->
