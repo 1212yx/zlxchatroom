@@ -352,6 +352,24 @@ def messages():
     
     return render_template('admin/messages.html', messages=messages, pagination=pagination, rooms=rooms, current_room_id=room_id, keyword=keyword)
 
+@admin.route('/messages/batch-delete', methods=['POST'])
+@admin_required
+def messages_batch_delete():
+    data = request.json or {}
+    ids = data.get('ids', [])
+    
+    if not ids:
+        return {'status': 'error', 'message': '未选择任何消息'}
+        
+    try:
+        # Batch delete using IN clause
+        Message.query.filter(Message.id.in_(ids)).delete(synchronize_session=False)
+        db.session.commit()
+        return {'status': 'success', 'message': f'成功删除 {len(ids)} 条消息'}
+    except Exception as e:
+        db.session.rollback()
+        return {'status': 'error', 'message': str(e)}
+
 @admin.route('/profile', methods=['GET', 'POST'])
 @admin_required
 def profile():
