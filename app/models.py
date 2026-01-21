@@ -43,6 +43,7 @@ class Room(db.Model):
     # 关系
     members = db.relationship('User', secondary=room_members, lazy='dynamic',
         backref=db.backref('rooms', lazy='dynamic'))
+    messages = db.relationship('Message', backref='room', lazy='dynamic')
 
 class WSServer(db.Model):
     __tablename__ = 'ws_servers'
@@ -56,6 +57,12 @@ class WSServer(db.Model):
     def __repr__(self):
         return f'<Room {self.name}>'
 
+# 管理员-角色关联表
+admin_roles = db.Table('admin_roles',
+    db.Column('admin_id', db.Integer, db.ForeignKey('admin_users.id'), primary_key=True),
+    db.Column('role_id', db.Integer, db.ForeignKey('roles.id'), primary_key=True)
+)
+
 class AdminUser(UserMixin, db.Model):
     __tablename__ = 'admin_users'
     id = db.Column(db.Integer, primary_key=True)
@@ -63,6 +70,12 @@ class AdminUser(UserMixin, db.Model):
     nickname = db.Column(db.String(64))
     avatar = db.Column(db.String(128))
     password_hash = db.Column(db.String(128))
+    is_super = db.Column(db.Boolean, default=False) # 超级管理员标识
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # 角色关联
+    roles = db.relationship('Role', secondary=admin_roles,
+                          backref=db.backref('admins', lazy='dynamic'))
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -114,3 +127,94 @@ class ThirdPartyApi(db.Model):
 
     def __repr__(self):
         return f'<ThirdPartyApi {self.name}>'
+
+# 角色-菜单关联表
+role_menus = db.Table('role_menus',
+    db.Column('role_id', db.Integer, db.ForeignKey('roles.id'), primary_key=True),
+    db.Column('menu_id', db.Integer, db.ForeignKey('menus.id'), primary_key=True)
+)
+
+class Menu(db.Model):
+    __tablename__ = 'menus'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(64), nullable=False)
+    icon = db.Column(db.String(64), default='layui-icon-circle')
+    url = db.Column(db.String(128)) # route endpoint or url
+    parent_id = db.Column(db.Integer, db.ForeignKey('menus.id'), nullable=True)
+    order = db.Column(db.Integer, default=0)
+    is_visible = db.Column(db.Boolean, default=True)
+    
+    # Relationship for nested menus
+    children = db.relationship('Menu', 
+                             backref=db.backref('parent', remote_side=[id]),
+                             order_by='Menu.order')
+
+    def __repr__(self):
+        return f'<Menu {self.name}>'
+
+class Role(db.Model):
+    __tablename__ = 'roles'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(64), unique=True, nullable=False)
+    description = db.Column(db.String(256))
+    
+    # Relationship with menus
+    menus = db.relationship('Menu', secondary=role_menus, 
+                          backref=db.backref('roles', lazy='dynamic'))
+
+    def __repr__(self):
+        return f'<Role {self.name}>'
+
+class AIChatSession(db.Model):
+    __tablename__ = 'ai_chat_sessions'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('admin_users.id'), nullable=False)
+    ai_model_id = db.Column(db.Integer, db.ForeignKey('ai_models.id'), nullable=True)
+    title = db.Column(db.String(256), default="New Chat")
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    is_deleted = db.Column(db.Boolean, default=False)
+
+    messages = db.relationship('AIChatMessage', backref='session', lazy='dynamic', cascade="all, delete-orphan")
+    user = db.relationship('AdminUser', backref='ai_sessions')
+    ai_model = db.relationship('AIModel', backref='sessions')
+
+    def __repr__(self):
+        return f'<AIChatSession {self.title}>'
+
+class AIChatMessage(db.Model):
+    __tablename__ = 'ai_chat_messages'
+    id = db.Column(db.Integer, primary_key=True)
+    session_id = db.Column(db.Integer, db.ForeignKey('ai_chat_sessions.id'), nullable=False)
+    role = db.Column(db.String(20), nullable=False) # user, ai, system
+    content = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<AIChatMessage {self.id}>'
+
+# Sensitive Word Module
+class SensitiveWord(db.Model):
+    __tablename__ = 'sensitive_words'
+    id = db.Column(db.Integer, primary_key=True)
+    word = db.Column(db.String(64), unique=True, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_by = db.Column(db.Integer, db.ForeignKey('admin_users.id'))
+
+    def __repr__(self):
+        return f'<SensitiveWord {self.word}>'
+
+class WarningLog(db.Model):
+    __tablename__ = 'warning_logs'
+    id = db.Column(db.Integer, primary_key=True)
+    content = db.Column(db.String(512))
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id')) # Normal user
+    room_id = db.Column(db.Integer, db.ForeignKey('rooms.id'))
+    triggered_word = db.Column(db.String(64))
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    user = db.relationship('User', backref=db.backref('warnings', lazy='dynamic'))
+    room = db.relationship('Room', backref=db.backref('warnings', lazy='dynamic'))
+
+    def __repr__(self):
+        return f'<WarningLog {self.id}>'

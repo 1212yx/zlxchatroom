@@ -2,7 +2,7 @@ from flask import render_template, request, session, redirect, url_for
 from . import chat
 from app.extensions import sock, db
 from app.models import WSServer, db
-from app.models import User, Room, Message
+from app.models import User, Room, Message, SensitiveWord, WarningLog
 import json
 from datetime import datetime
 
@@ -141,6 +141,35 @@ def websocket(ws):
                     if msg.get('type') == 'chat':
                         content = msg.get('content')
                         if content:
+                            # Check sensitive words
+                            sensitive_words = SensitiveWord.query.all()
+                            found_sensitive = None
+                            for sw in sensitive_words:
+                                if sw.word in content:
+                                    found_sensitive = sw.word
+                                    break
+                            
+                            if found_sensitive:
+                                # Intercept and Log Warning
+                                if user_obj and room_obj:
+                                    warning = WarningLog(
+                                        content=content,
+                                        user_id=user_obj.id,
+                                        room_id=room_obj.id,
+                                        triggered_word=found_sensitive
+                                    )
+                                    db.session.add(warning)
+                                    db.session.commit()
+                                
+                                # Notify sender only
+                                ws.send(json.dumps({
+                                    'type': 'system', 
+                                    'content': f'系统拦截：您的消息包含敏感词 "{found_sensitive}"，发送失败。',
+                                    'timestamp': datetime.now().strftime('%H:%M')
+                                }))
+                                # Skip broadcast and save
+                                continue
+
                             # Save to DB
                             if user_obj and room_obj:
                                 db_msg = Message(content=content, user_id=user_obj.id, room_id=room_obj.id)
